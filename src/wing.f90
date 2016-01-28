@@ -273,7 +273,7 @@ subroutine wing_flip_groundplane(t,alpha,CG,hag)
     type(wing_t) :: t
     real :: alpha,CG(3),hag
     integer :: isec
-    real :: A,B,C,D,P1(3),P2(3),P3(3),tempv(3),tempr
+    real :: A,B,C,D,P1(3),P2(3),P3(3),tempv(3),tempr,temp_percent
     P1(1) = CG(1) - hag*sin(alpha) !offset from CG
     P1(2) = CG(2)
     P1(3) = CG(3) + hag*cos(alpha)
@@ -294,11 +294,16 @@ subroutine wing_flip_groundplane(t,alpha,CG,hag)
         tempr = t%sec(isec)%chord_1
         t%sec(isec)%chord_1 = t%sec(isec)%chord_2
         t%sec(isec)%chord_2 = tempr
+
         call math_reflect_point(A,B,C,0.0,t%sec(isec)%un,tempv)
         t%sec(isec)%un = tempv
         call math_reflect_point(A,B,C,0.0,t%sec(isec)%ua,tempv)
         t%sec(isec)%ua = tempv
+        call math_reflect_point(A,B,C,0.0,t%sec(isec)%uf,tempv)
+        t%sec(isec)%uf = tempv
+
         call math_cross_product(t%sec(isec)%ua,t%sec(isec)%un,t%sec(isec)%us)
+
         tempv = t%sec(isec)%P1
         t%sec(isec)%P1 = t%sec(isec)%P2
         t%sec(isec)%P2 = tempv
@@ -312,8 +317,11 @@ subroutine wing_flip_groundplane(t,alpha,CG,hag)
         t%sec(isec)%zeta(:) = t%sec(isec)%chord_c*t%sec(isec)%dl(:)/t%sec(isec)%ds
         call math_reflect_point(A,B,C,D,t%root,tempv)
         t%sec(isec)%Rroot(:) = t%sec(isec)%PC(:) - tempv(:)
-        t%sec(isec)%af1 => t%af2
-        t%sec(isec)%af2 => t%af1
+!        t%sec(isec)%af1 => t%af2
+!        t%sec(isec)%af2 => t%af1
+!        temp_percent = t%sec(isec)%percent_1
+!        t%sec(isec)%percent
+!        t%sec(isec)
     end do
     
 end subroutine wing_flip_groundplane

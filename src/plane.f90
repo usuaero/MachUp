@@ -591,7 +591,7 @@ subroutine plane_set_control_deflections(t,include_sections)
     !wing surface by reading the json input file "mix" parameter for each wing.
         
     if(t%verbose.eq.1) write(*,*) '--------- Setting Control Deflections ---------'
-    do iwing=1,t%nrealwings
+    do iwing=1,t%nwings
         if(t%verbose.eq.1) write(*,*) 'Wing: ',trim(t%wings(iwing)%name), ' (',trim(t%wings(iwing)%side), ' side)'
         mydeflection = 0.0
         if(t%wings(iwing)%has_control_surface.eq.1) then
@@ -755,6 +755,7 @@ subroutine plane_solve_linear(t)
         call math_cross_product(t%Uinf(:),si%zeta(:),vec(:))
         t%Amat(i,i) = t%Amat(i,i) + 2.0*math_mag(3,vec)
 !write(*,*) i,t%Amat(i,i)
+!write(*,*) si%PC(:)
         t%Bvec(i) = sec_CL(si) !this is slightly different than in the paper, but is the way Phillips actually does it
         !And it appears to be correct to me. The way in the paper uses linear and small-angle approximations in order to
         !simplify the expression for CL of the section. But this way just looks it up directly so can account for

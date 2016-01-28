@@ -93,6 +93,16 @@ subroutine view_plotmtv(t)
             write(10,*) -si%P2(:)
             write(10,*) ' '
 
+            if(si%cf_c > 0.0) then
+                write(10,*) ' % linecolor = 9' !flaps
+                P1 = -(si%P1(:) + (0.75-si%cf_c)*si%chord_1*si%ua(:))
+                P2 = -(si%P2(:) + (0.75-si%cf_c)*si%chord_2*si%ua(:))
+                write(10,*) P1
+                write(10,*) P1 - si%cf_c*si%chord_1*si%uf(:)
+                write(10,*) P2 - si%cf_c*si%chord_2*si%uf(:)
+                write(10,*) P2
+                write(10,*) ' '
+            end if
         end do
     end do
 
