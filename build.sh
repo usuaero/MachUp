@@ -5,7 +5,7 @@
 #     - modified 6/23/2014
 
 SRCDIR='src/'                #source directory
-CMSRC='/Users/doughunsaker/Documents/XCodeProjects/CommonSource'       #common source directory
+CMSRC='../Common'       #common source directory
 BUILDDIR='obj/'              #build directory for library
 BINDIR='bin/'                #build directory for executable
 FEXT='.f90'                  #fortran file extension
