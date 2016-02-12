@@ -2,20 +2,20 @@
 "airfoil_DB": ".",
 "run": {
     "stl" : "",
-    "xforces" : {"run" : 0},
-    "xdistributions" : {
-        "output" : "json"
+    "forces" : {"run" : 0},
+    "distributions" : {
+        "output" : "txt"
     },
-    "xderivatives" : {"run" : 1},
-    "xstallonset" : "",
-    "xaerocenter" : "",
-    "xtargetcl" : {"CL" : 0.5},
-    "xspanloads" : {"filename" : "0.5.txt"},
-    "xpitchtrim" : {
+    "derivatives" : {"run" : 1},
+    "stallonset" : "",
+    "aerocenter" : "",
+    "targetcl" : {"CL" : 0.5},
+    "spanloads" : {"filename" : "0.5.txt"},
+    "pitchtrim" : {
         "CL" : 0.4,
         "Cm" : 0.0
     },
-    "xreport" : {
+    "report" : {
         "fitness" : {
             "name" : "total.myairplane.CD",
             "file" : "input_forces.json"
@@ -69,7 +69,6 @@
 		},
 		"span": 4.0,
 		"sweep": 10.0,
-        "sweep_definition" : 0,
 		"dihedral": 0.0,
 		"mounting_angle": 0.0,
 		"washout": 0.0,
