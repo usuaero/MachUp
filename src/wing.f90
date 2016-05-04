@@ -1,11 +1,15 @@
 module wing_m
+#ifdef dnad
+    use dnadmod
+#define real type(dual)
+#endif
     use section_m
     implicit none
 
     type wing_t
         integer :: ID
         character(20) :: name
-        
+
         character(5) :: side !left/right/both
         character(5) :: orig_side !original spec from input file
         character(4) :: connectend !root/tip
@@ -14,7 +18,7 @@ module wing_m
         integer :: control_is_sealed
         integer :: is_linear
         integer :: sweep_definition
-    
+
         real :: area
         real :: doffset(3) !offset from connecting wing
         real :: dy !y-offset from connecting wing
@@ -36,16 +40,16 @@ module wing_m
         character(100) :: af1_text,af2_text !original text from file
         type(airfoil_t),pointer :: af1
         type(airfoil_t),pointer :: af2
-        
+
         integer :: nSec
-        
+
         real :: root_F(3), root_M(3) !force and moment load at root of the wing
         real :: tip_F(3), tip_M(3) !force and moment load at the tip of the wing
         real :: root_theta, tip_theta !twisted shape at root and tip
 
 
         type(section_t),pointer,dimension(:) :: sec
-        
+
         !possible files
         character(100) :: f_sweep, f_dihedral, f_washout, f_chord, f_root_airfoil, f_tip_airfoil
         character(100) :: f_EIGJ, f_elastic_twist
@@ -69,7 +73,8 @@ end subroutine wing_deallocate
 subroutine wing_setup(t,start)
     type(wing_t) :: t
     integer :: isec
-    real :: start(3),qvec(3),nvec(3),avec(3),fvec(3),dtheta,percent_1,percent_2,percent_c,chord_1,chord_2,RA,span
+    REAL :: dtheta
+    real :: start(3),qvec(3),nvec(3),avec(3),fvec(3),percent_1,percent_2,percent_c,chord_1,chord_2,RA,span
     real :: my_sweep,my_dihedral,my_twist,temp
     real :: sweep1,sweep2,dihedral1,dihedral2,twist1,twist2
     real :: cfc,thetaf,efi,etah
@@ -102,14 +107,13 @@ subroutine wing_setup(t,start)
     start = t%root
 
     call wing_allocate(t)
-    dtheta = pi/real(t%nSec)
+    dtheta = pi/REAL(t%nSec)
 t%area = 0.0
 span = 0.0
     do isec=1,t%nSec
-
-        percent_1 = 0.5*(1.0-cos(dtheta*real(isec-1)))
-        percent_2 = 0.5*(1.0-cos(dtheta*real(isec)))
-        percent_c = 0.5*(1.0-cos(dtheta*(real(isec)-0.5)))
+        percent_1 = 0.5*(1.0-cos(dtheta*REAL(isec-1)))
+        percent_2 = 0.5*(1.0-cos(dtheta*REAL(isec)))
+        percent_c = 0.5*(1.0-cos(dtheta*(REAL(isec)-0.5)))
         if(t%side.eq.'left') then !must handle differently for left wing
             temp = percent_1
             percent_1 = percent_2
@@ -128,7 +132,7 @@ span = 0.0
         my_sweep = t%sweep
         my_dihedral = t%dihedral
         my_twist = t%mount - percent_c*t%washout
-        
+
         !For geometry purposes
         sweep1 = my_sweep
         sweep2 = my_sweep
@@ -160,7 +164,7 @@ span = 0.0
         if(t%f_elastic_twist .ne.  'none') then
             my_twist   = my_twist + ds_linear_interpolate_col(data_elastic_twist,percent_c,1,2)*pi/180.0
         end if
-        
+
         !for geometry purposes
         t%sec(isec)%twist = my_twist
         t%sec(isec)%twist1 = twist1
@@ -169,7 +173,7 @@ span = 0.0
         t%sec(isec)%dihedral1 = dihedral1
         t%sec(isec)%dihedral2 = dihedral2
         t%sec(isec)%sweep = my_sweep
-        
+
         !operate!
         qvec(1) = 0.0; qvec(2) = 1.0; qvec(3) = 0.0
         nvec(1) = 0.0; nvec(2) = 0.0; nvec(3) =-1.0
@@ -202,7 +206,7 @@ span = 0.0
         t%sec(isec)%ua(:) = avec(:)
         t%sec(isec)%uf(:) = fvec(:)
         call math_cross_product(avec(:),nvec(:),t%sec(isec)%us)
-        
+
         if(t%side.eq.'left') then !must handle differently for left wing
             t%sec(isec)%P2(:) = start(:)
             t%sec(isec)%P1(:) = start(:) + qvec(:)*(percent_1-percent_2)*t%span
@@ -216,7 +220,7 @@ span = 0.0
         if(t%sweep_definition .eq. 0) then !remove sweep from control points
             t%sec(isec)%temp_P1(:) = t%sec(isec)%P1(:)
             t%sec(isec)%temp_P2(:) = t%sec(isec)%P2(:)
-            
+
             t%sec(isec)%P1(1) = t%sec(isec)%PC(1)
             t%sec(isec)%P2(1) = t%sec(isec)%PC(1)
             t%sec(isec)%dl(:) = t%sec(isec)%P2(:) - t%sec(isec)%P1(:)
@@ -226,7 +230,7 @@ span = 0.0
         t%sec(isec)%Rroot(:) = t%sec(isec)%PC(:) - t%root(:)
         t%sec(isec)%af1 => t%af1
         t%sec(isec)%af2 => t%af2
-        
+
         !Add flaps
         t%sec(isec)%cf_c = 0.0
         if(t%has_control_surface .eq. 1) then
@@ -273,7 +277,8 @@ subroutine wing_flip_groundplane(t,alpha,CG,hag)
     type(wing_t) :: t
     real :: alpha,CG(3),hag
     integer :: isec
-    real :: A,B,C,D,P1(3),P2(3),P3(3),tempv(3),tempr,temp_percent
+    real :: A,B,C,D,P1(3),P2(3),P3(3),tempv(3),tempr,temp_percent,zero
+    zero = 0.0
     P1(1) = CG(1) - hag*sin(alpha) !offset from CG
     P1(2) = CG(2)
     P1(3) = CG(3) + hag*cos(alpha)
@@ -282,24 +287,24 @@ subroutine wing_flip_groundplane(t,alpha,CG,hag)
     P3(1) = P1(1) - cos(alpha)
     P3(2) = P1(2)
     P3(3) = P1(3) - sin(alpha)
-    
+
     !equation for the plane
-    A = P1(2) * (P2(3) - P3(3)) + P2(2) * (P3(3) - P1(3)) + P3(2) * (P1(3) - P2(3)) 
-    B = P1(3) * (P2(1) - P3(1)) + P2(3) * (P3(1) - P1(1)) + P3(3) * (P1(1) - P2(1)) 
-    C = P1(1) * (P2(2) - P3(2)) + P2(1) * (P3(2) - P1(2)) + P3(1) * (P1(2) - P2(2)) 
+    A = P1(2) * (P2(3) - P3(3)) + P2(2) * (P3(3) - P1(3)) + P3(2) * (P1(3) - P2(3))
+    B = P1(3) * (P2(1) - P3(1)) + P2(3) * (P3(1) - P1(1)) + P3(3) * (P1(1) - P2(1))
+    C = P1(1) * (P2(2) - P3(2)) + P2(1) * (P3(2) - P1(2)) + P3(1) * (P1(2) - P2(2))
     D = -(P1(1)*(P2(2)*P3(3) - P3(2)*P2(3)) + P2(1)*(P3(2)*P1(3) - P1(2)*P3(3)) + P3(1)*(P1(2)*P2(3) - P2(2)*P1(3)))
-    
-    
+
+
     do isec=1,t%nSec
         tempr = t%sec(isec)%chord_1
         t%sec(isec)%chord_1 = t%sec(isec)%chord_2
         t%sec(isec)%chord_2 = tempr
 
-        call math_reflect_point(A,B,C,0.0,t%sec(isec)%un,tempv)
+        call math_reflect_point(A,B,C,zero,t%sec(isec)%un,tempv)
         t%sec(isec)%un = tempv
-        call math_reflect_point(A,B,C,0.0,t%sec(isec)%ua,tempv)
+        call math_reflect_point(A,B,C,zero,t%sec(isec)%ua,tempv)
         t%sec(isec)%ua = tempv
-        call math_reflect_point(A,B,C,0.0,t%sec(isec)%uf,tempv)
+        call math_reflect_point(A,B,C,zero,t%sec(isec)%uf,tempv)
         t%sec(isec)%uf = tempv
 
         call math_cross_product(t%sec(isec)%ua,t%sec(isec)%un,t%sec(isec)%us)
@@ -323,7 +328,7 @@ subroutine wing_flip_groundplane(t,alpha,CG,hag)
 !        t%sec(isec)%percent
 !        t%sec(isec)
     end do
-    
+
 end subroutine wing_flip_groundplane
 
 !-----------------------------------------------------------------------------------------------------------
