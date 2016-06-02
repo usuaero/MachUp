@@ -1,18 +1,23 @@
 module view_m
+#ifdef dnad
+    use dnadmod
+#define real type(dual)
+#endif
     use plane_m
     implicit none
-    
+
 contains
 
 !-----------------------------------------------------------------------------------------------------------
 subroutine view_plotmtv(t)
     type(plane_t) :: t
     type(section_t),pointer :: si
-    character(100) :: filename,command
+    character(100) :: filename
+    character(140) :: command
     integer :: i,iwing,isec,gnum,iforce,ipoint,min_isec
     integer :: ierror = 0
     real :: P0(3),P1(3),P2(3),gpsize,delta,force_pos(3),force_dir(3),force_mag,dist,min_dist
-    
+
     filename = trim(adjustl(t%master_filename))//'_PlotData.txt'
     open(unit = 10, File = filename, action = 'write', iostat = ierror)
 
@@ -120,7 +125,7 @@ subroutine view_plotmtv(t)
     if(t%groundplane .eq. 1) then !draw a ground plane
         gpsize = 10.0 !length of ground plane
         gnum = 5 !number of squares on plane
-        delta = gpsize/real(gnum)
+        delta = gpsize/REAL(gnum)
 
         P0(1) = t%CG(1) - t%hag*sin(t%alpha) !offset from CG !this code copied from wing.f90
         P0(2) = t%CG(2)
@@ -128,22 +133,22 @@ subroutine view_plotmtv(t)
 
         do i=-gnum,gnum
             write(10,*) ' % linecolor = 8'
-            P1(1) = P0(1) - gpsize*cos(t%alpha); P1(2) = P0(2) + real(i)*delta; P1(3) = P0(3) - gpsize*sin(t%alpha)
-            P2(1) = P0(1) + gpsize*cos(t%alpha); P2(2) = P0(2) + real(i)*delta; P2(3) = P0(3) + gpsize*sin(t%alpha)
+            P1(1) = P0(1) - gpsize*cos(t%alpha); P1(2) = P0(2) + REAL(i)*delta; P1(3) = P0(3) - gpsize*sin(t%alpha)
+            P2(1) = P0(1) + gpsize*cos(t%alpha); P2(2) = P0(2) + REAL(i)*delta; P2(3) = P0(3) + gpsize*sin(t%alpha)
             write(10,*) -P1(:)
             write(10,*) -P2(:)
             write(10,*) ' '
         end do
         do i=-gnum,gnum
             write(10,*) ' % linecolor = 8'
-            P1(1) = P0(1) - real(i)*delta*cos(t%alpha); P1(2) = P0(2) + gpsize; P1(3) = P0(3) - real(i)*delta*sin(t%alpha)
-            P2(1) = P0(1) - real(i)*delta*cos(t%alpha); P2(2) = P0(2) - gpsize; P2(3) = P0(3) - real(i)*delta*sin(t%alpha)
+            P1(1) = P0(1) - REAL(i)*delta*cos(t%alpha); P1(2) = P0(2) + gpsize; P1(3) = P0(3) - REAL(i)*delta*sin(t%alpha)
+            P2(1) = P0(1) - REAL(i)*delta*cos(t%alpha); P2(2) = P0(2) - gpsize; P2(3) = P0(3) - REAL(i)*delta*sin(t%alpha)
             write(10,*) -P1(:)
             write(10,*) -P2(:)
             write(10,*) ' '
         end do
     end if
-    
+
     !show external forces tied to closest structure
     do iforce = 1,size(t%external_forces)
         do ipoint=1,t%external_forces(iforce)%datasize
@@ -196,7 +201,7 @@ subroutine view_vtk(t)
     write(10,'(A)') 'vtk output'
     write(10,'(A)') 'ASCII'
     write(10,'(A)') 'DATASET POLYDATA'
-    write(10,'(A)') 
+    write(10,'(A)')
     write(10,'(A,I5,A)') 'POINTS ',t%nSize*2,' float'
 
     do iwing=1,t%nrealwings !real wings
@@ -238,11 +243,11 @@ subroutine view_stl(t)
 !    open(unit = 20, File = filename, action = 'write', iostat = ierror)
 
     write(10,'(A)') 'solid geom'
-    
+
     do iwing=1,t%nrealwings !real wings
         af1 => t%wings(iwing)%af1
         af2 => t%wings(iwing)%af2
-        
+
         af_datasize = af1%geom%datasize
         if(af2%geom%datasize .ne. af_datasize) then
             write(*,*) 'Both root and tip airfoils must have same number of nodes'
@@ -250,7 +255,7 @@ subroutine view_stl(t)
         end if
         allocate(af_points1(af_datasize,3))
         allocate(af_points2(af_datasize,3))
-        
+
         if(t%wings(iwing)%is_linear.ne.1) then
             do isec=1,t%wings(iwing)%nSec
                 si => t%wings(iwing)%sec(isec)
@@ -302,7 +307,7 @@ subroutine view_create_stl_shell(datasize,af_points1,af_points2)
         P1(:) = af_points1(i,:)
         P2(:) = af_points2(i,:)
         P3(:) = af_points1(i+1,:)
-        
+
         call view_add_stl_triangle(P1,P3,P2)
 
         P1 = P2
@@ -333,7 +338,7 @@ subroutine view_create_stl_rib(datasize,af_points)
         P2(:) = af_points(datasize-i+1,:)
         P3(:) = af_points(i+1,:)
         call view_add_stl_triangle(P1,P3,P2)
-        
+
         P1 = P2
         P2(:) = af_points(datasize-i,:)
         call view_add_stl_triangle(P1,P3,P2)
@@ -344,7 +349,6 @@ end subroutine view_create_stl_rib
 subroutine view_add_stl_triangle(P1,P2,P3)
     real :: P1(3),P2(3),P3(3),norm(3)
     110 Format(A15, 3ES25.13)
-    120 Format(9ES25.13)
 
     call math_plane_normal(P1,P2,P3,norm)
     write(10,110) 'facet normal ',norm(:)
@@ -354,7 +358,7 @@ subroutine view_add_stl_triangle(P1,P2,P3)
     write(10,110) 'vertex ',P3(:)
     write(10,*) 'endloop'
     write(10,*) 'endfacet'
-    
+
 !    write(20,120) P1(:),P2(:),P3(:)
 end subroutine view_add_stl_triangle
 
@@ -373,19 +377,19 @@ subroutine view_create_local_airfoil(af1,af2,side,percent,chord,twist,dihedral,d
     output(:,1) = -output(:,1) !flip x
     output(:,3) = -output(:,2) !assign y to z
     output(:,2) = 0.0 !set y to zero
-    
-    
+
+
     if(side.eq.'left') then
 !        twist = -twist
         dihedral = -dihedral
     end if
-    
+
     do i=1,datasize
         call math_rot_y(output(i,:),twist)
         call math_rot_x(output(i,:),-dihedral)
         output(i,:) = output(i,:) + point(:)
     end do
-    
+
 end subroutine view_create_local_airfoil
 
 end module view_m
