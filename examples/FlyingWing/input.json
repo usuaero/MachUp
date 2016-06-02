@@ -69,7 +69,7 @@
 		},
 		"span": 4.0,
 		"sweep": 10.0,
-        "sweep_definition" : 0,
+        "sweep_file" : "sweep.txt",
 		"dihedral": 0.0,
 		"mounting_angle": 0.0,
 		"washout": 0.0,
