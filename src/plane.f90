@@ -335,8 +335,7 @@ subroutine plane_load_json(t)
         t%wings(iwing)%f_dihedral      = 'none'
         t%wings(iwing)%f_washout       = 'none'
         t%wings(iwing)%f_chord         = 'none'
-        t%wings(iwing)%f_root_airfoil  = 'none'
-        t%wings(iwing)%f_tip_airfoil   = 'none'
+        t%wings(iwing)%f_af_ratio      = 'none'
         t%wings(iwing)%f_EIGJ          = 'none'
         t%wings(iwing)%f_elastic_twist = 'none'
 
@@ -352,6 +351,9 @@ subroutine plane_load_json(t)
         call json_clear_exceptions()
         call t%json%get('wings.'//trim(j_wing%name)//'.washout_file', cval);
         if(.NOT.json_failed()) t%wings(iwing)%f_washout = cval
+        call json_clear_exceptions()
+        call t%json%get('wings.'//trim(j_wing%name)//'.af_ratio_file', cval);
+        if(.NOT.json_failed()) t%wings(iwing)%f_af_ratio = cval
         call json_clear_exceptions()
 
         !make sure wing is totally set up before continuing. Here it will mirror it to the other side
@@ -402,7 +404,9 @@ subroutine plane_load_airfoil(t,i,prefix,local)
             call myjson_get(f_json, trim(prefix)//'properties.CL_alpha', airfoils(i)%CLa);
             call myjson_get(f_json, trim(prefix)//'properties.Cm_L0', airfoils(i)%CmL0);
             call myjson_get(f_json, trim(prefix)//'properties.Cm_alpha', airfoils(i)%Cma);
-            call myjson_get(f_json, trim(prefix)//'properties.CD_min', airfoils(i)%CD0);
+            call myjson_get(f_json, trim(prefix)//'properties.CD0', airfoils(i)%CD0);
+            call myjson_get(f_json, trim(prefix)//'properties.CD0_L', airfoils(i)%CD0L);
+            call myjson_get(f_json, trim(prefix)//'properties.CD0_L2', airfoils(i)%CD0L2);
             call myjson_get(f_json, trim(prefix)//'properties.CL_max', airfoils(i)%CLmax, -1.0);
             airfoils(i)%has_data_file = 0
         case ('datafile')
@@ -527,10 +531,7 @@ subroutine plane_write_json_file(t,filename)
         if(t%wings(iwing)%f_sweep.ne.'none')    call json_value_add( p_wingi, 'sweep_file',     trim(t%wings(iwing)%f_sweep))
         if(t%wings(iwing)%f_dihedral.ne.'none') call json_value_add( p_wingi, 'dihedral_file',  trim(t%wings(iwing)%f_dihedral))
         if(t%wings(iwing)%f_washout.ne.'none')  call json_value_add( p_wingi, 'washout_file',   trim(t%wings(iwing)%f_washout))
-!        if(t%wings(i)%f_root_airfoil.ne.'none') write(10,*) 'file ',trim(t%wings(i)%name),' root_airfoil ',&
-!                                                &trim(t%wings(i)%f_root_airfoil)
-!        if(t%wings(i)%f_tip_airfoil.ne.'none') write(10,*) 'file ',trim(t%wings(i)%name),' tip_airfoil ',&
-!                                                &trim(t%wings(i)%f_tip_airfoil)
+        if(t%wings(iwing)%f_af_ratio.ne.'none')  call json_value_add( p_wingi, 'af_ratio_file',   trim(t%wings(iwing)%f_af_ratio))
         nullify(p_wingi)
         if(t%wings(iwing)%orig_side .eq. 'both') iwing = iwing + 1
     end do

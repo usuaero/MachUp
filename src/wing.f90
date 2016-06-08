@@ -51,7 +51,7 @@ module wing_m
         type(section_t),pointer,dimension(:) :: sec
 
         !possible files
-        character(100) :: f_sweep, f_dihedral, f_washout, f_chord, f_root_airfoil, f_tip_airfoil
+        character(100) :: f_sweep, f_dihedral, f_washout, f_chord, f_af_ratio
         character(100) :: f_EIGJ, f_elastic_twist
     end type wing_t
 
@@ -74,11 +74,11 @@ subroutine wing_setup(t,start)
     type(wing_t) :: t
     integer :: isec
     REAL :: dtheta
-    real :: start(3),qvec(3),nvec(3),avec(3),fvec(3),percent_1,percent_2,percent_c,chord_1,chord_2,RA,span
+    real :: start(3),qvec(3),nvec(3),avec(3),fvec(3),percent_1,percent_2,percent_c,chord_1,chord_2,RA,span,percent_af
     real :: my_sweep,my_dihedral,my_twist,temp
     real :: sweep1,sweep2,dihedral1,dihedral2,twist1,twist2
     real :: cfc,thetaf,efi,etah
-    type(dataset_t) :: data_sweep,data_dihedral,data_washout,data_chord,data_elastic_twist
+    type(dataset_t) :: data_sweep,data_dihedral,data_washout,data_chord,data_af_ratio,data_elastic_twist
 
     t%is_linear = 1
 
@@ -94,6 +94,9 @@ subroutine wing_setup(t,start)
     end if
     if(t%f_washout .ne. 'none') then
         t%is_linear = 0; call ds_create_from_file(data_washout,t%f_washout,2)
+    end if
+    if(t%f_af_ratio .ne. 'none') then
+        t%is_linear = 0; call ds_create_from_file(data_af_ratio,t%f_af_ratio,2)
     end if
     if(t%f_elastic_twist .ne. 'none') then
         t%is_linear = 0; call ds_create_from_file(data_elastic_twist,t%f_elastic_twist,2)
@@ -132,6 +135,9 @@ span = 0.0
         my_sweep = t%sweep
         my_dihedral = t%dihedral
         my_twist = t%mount - percent_c*t%washout
+        t%sec(isec)%percent_af   = percent_c
+        t%sec(isec)%percent_af_1 = percent_1
+        t%sec(isec)%percent_af_2 = percent_2
 
         !For geometry purposes
         sweep1 = my_sweep
@@ -160,6 +166,11 @@ span = 0.0
             my_twist   = t%mount - ds_linear_interpolate_col(data_washout,percent_c,1,2)*pi/180.0
             twist1     = t%mount - ds_linear_interpolate_col(data_washout,percent_1,1,2)*pi/180.0
             twist2     = t%mount - ds_linear_interpolate_col(data_washout,percent_2,1,2)*pi/180.0
+        end if
+        if(t%f_af_ratio .ne. 'none') then
+            t%sec(isec)%percent_af   = ds_linear_interpolate_col(data_af_ratio,percent_c,1,2)
+            t%sec(isec)%percent_af_1 = ds_linear_interpolate_col(data_af_ratio,percent_1,1,2)
+            t%sec(isec)%percent_af_2 = ds_linear_interpolate_col(data_af_ratio,percent_2,1,2)
         end if
         if(t%f_elastic_twist .ne.  'none') then
             my_twist   = my_twist + ds_linear_interpolate_col(data_elastic_twist,percent_c,1,2)*pi/180.0
