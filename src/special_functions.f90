@@ -461,7 +461,7 @@ subroutine sf_stallonset(t,json_command)
     note = "Linear Stall Onset."
 
     call myjson_get(json_command, 'start_alpha', start_alpha, 0.0)
-    start_alpha = (start_alpha+1.0)*pi/180.0  !!??? Why add 1 degree here???
+    start_alpha = (start_alpha+1.0)*pi/180.0  ! Add 1 degree, but ialpha loop starts at i=-10
 
     write(*,*)
     write(*,*) '---------- Evaluating Stall Onset -----------'
