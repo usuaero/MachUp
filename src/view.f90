@@ -259,9 +259,9 @@ subroutine view_stl(t)
         if(t%wings(iwing)%is_linear.ne.1) then
             do isec=1,t%wings(iwing)%nSec
                 si => t%wings(iwing)%sec(isec)
-                call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_1,si%chord_1,&
+                call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_af_1,si%chord_1,&
                                             & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
-                call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_2,si%chord_2,&
+                call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_af_2,si%chord_2,&
                                             & si%twist2,si%dihedral2,af_datasize,si%P2(:),af_points2)
 
                 call view_create_stl_shell(af_datasize,af_points1,af_points2)
@@ -270,17 +270,17 @@ subroutine view_stl(t)
 
         if(t%wings(iwing)%side == 'right') then
             si => t%wings(iwing)%sec(1)
-            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_1,si%chord_1,&
+            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_af_1,si%chord_1,&
             & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
             si => t%wings(iwing)%sec(t%wings(iwing)%nSec)
-            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_2,si%chord_2,&
+            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_af_2,si%chord_2,&
             & si%twist2,si%dihedral2,af_datasize,si%P2(:),af_points2)
         else
             si => t%wings(iwing)%sec(1)
-            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_2,si%chord_2,&
+            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_af_2,si%chord_2,&
                                         & si%twist2,si%dihedral2,af_datasize,si%P2(:),af_points2)
             si => t%wings(iwing)%sec(t%wings(iwing)%nSec)
-            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_1,si%chord_1,&
+            call view_create_local_airfoil(af1,af2,t%wings(iwing)%side,si%percent_af_1,si%chord_1,&
                                         & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
         end if
 

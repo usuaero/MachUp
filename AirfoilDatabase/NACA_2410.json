@@ -1,0 +1,17 @@
+{
+    "name" : "NACA_2410",
+    "properties" : {
+        "type" : "linear",
+        "alpha_L0" : -0.03689,
+        "CL_alpha" : 6.18221,
+        "Cm_L0" : -0.05521,
+        "Cm_alpha" : 0.04354,
+        "CD_min" : 0.0,
+        "CD0" : 0.005784,
+        "CD0_L" : -0.004473,
+        "CD0_L2" : 0.010023,
+        "CL_max" : 1.4,
+        "DataMachNumber" : 0.0,
+        "Comments" : "All angles in radians and slopes in 1/radians"
+    }
+}
