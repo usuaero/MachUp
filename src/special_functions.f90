@@ -44,7 +44,7 @@ subroutine sf_distributions(t,json_command)
         write(10,'(A75)',advance="no") 'ControlPoint(z)          Chord                    Twist(deg)               '
         write(10,'(A75)',advance="no") 'Sweep(deg)               Dihedral(deg)            Area                     '
         write(10,'(A75)',advance="no") 'Alpha(deg)               Section_CL               Section_CD_parasitic     '
-        write(10,'(A34)',advance="no") 'Section_Cm               Global_CL'
+        write(10,'(A75)',advance="no") 'Section_Cm               CL(Ref)                  Section_alpha_L0(deg)    '
         do iwing=1,t%nwings
             write(10,'(A7)',advance="no") 'newline'
             do isec=1,t%wings(iwing)%nSec
@@ -52,7 +52,8 @@ subroutine sf_distributions(t,json_command)
                 write(10,120,advance="no") t%wings(iwing)%name,si%PC(:),&
                               & si%chord_c,si%twist*180.0/pi,si%sweep*180.0/pi,si%dihedral*180.0/pi,&
                               & si%ds,&
-                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r
+                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r,&
+                              & sec_alpha_L0(si)*180.0/pi
                 write(10,'(A7)',advance="no") 'newline'
             end do
         end do
@@ -67,14 +68,15 @@ subroutine sf_distributions(t,json_command)
         write(10,'(A75)',advance="no") 'ControlPoint(z)          Chord                    Twist(deg)               '
         write(10,'(A75)',advance="no") 'Sweep(deg)               Dihedral(deg)            Area                     '
         write(10,'(A75)',advance="no") 'Section_Alpha(deg)       Section_CL               Section_CD_parasitic     '
-        write(10,'(A34)')              'Section_Cm               Global_CL'
+        write(10,'(A75)')              'Section_Cm               CL(Ref)                  Section_alpha_L0(deg)    '
         do iwing=1,t%nwings
             do isec=1,t%wings(iwing)%nSec
                 si => t%wings(iwing)%sec(isec)
                 write(10,120) t%wings(iwing)%name,si%PC(:),&
                               & si%chord_c,si%twist*180.0/pi,si%sweep*180.0/pi,si%dihedral*180.0/pi,&
                               & si%ds,&
-                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r
+                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r,&
+                              & sec_alpha_L0(si)
             end do
 !            write(10,*)
         end do
