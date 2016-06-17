@@ -207,8 +207,8 @@ subroutine plane_load_json(t)
     ! Read Wings
     call t%json%get('wings', j_this)
     nreadwings = json_value_count(j_this)
-!    write(*,*) 'Number of wings in file : ',nreadwings
     t%nrealwings = nreadwings
+    nairfoils = 0
     do i=1,nreadwings
         call json_value_get(j_this,i,j_wing)
         call t%json%get('wings.'//trim(j_wing%name)//'.side', cval); call json_check(); side = trim(cval)
