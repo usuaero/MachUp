@@ -134,10 +134,10 @@ end subroutine plane_set_defaults
 !-----------------------------------------------------------------------------------------------------------
 subroutine plane_load_json(t)
     type(plane_t) :: t
-    type(json_value),pointer :: j_this, j_wing, j_cont, j_afprop
+    type(json_value),pointer :: j_this, j_wing, j_cont, j_afprop, j_afread, json_command
     character(len=:),allocatable :: cval
     character(5) :: side
-    integer :: loc,i,iwing,idummy,keep_reading,nreadwings,iforce,count,icontrol,iairfoil
+    integer :: loc,i,iwing,idummy,keep_reading,nreadwings,iforce,count,icontrol,iairfoil,nairfoils,iaf
     real :: sweep,dihedral,mount,washout
 
     call json_initialize()
@@ -213,6 +213,9 @@ subroutine plane_load_json(t)
         call json_value_get(j_this,i,j_wing)
         call t%json%get('wings.'//trim(j_wing%name)//'.side', cval); call json_check(); side = trim(cval)
         if(side == 'both') t%nrealwings = t%nrealwings + 1
+
+        call t%json%get('wings.'//trim(j_wing%name)//'.airfoils', j_afread)
+        nairfoils = nairfoils + json_value_count(j_afread)
     end do
 
     if(t%groundplane == 1) then
@@ -222,7 +225,7 @@ subroutine plane_load_json(t)
     end if
 
     allocate(t%wings(t%nwings))
-    allocate(airfoils(2*nreadwings))
+    allocate(airfoils(nairfoils))
     iforce = 0
     allocate(t%external_forces(iforce))
     allocate(t%external_force_mult(iforce))
@@ -269,34 +272,25 @@ subroutine plane_load_json(t)
         if(json_failed()) t%wings(iwing)%sweep_definition=1
         call json_clear_exceptions()
 
-        !Root Airfoil
-        iairfoil = iairfoil + 1
-        call t%json%get('wings.'//trim(j_wing%name)//'.root_airfoil.name',                    cval); call json_check()
-                                                                                t%wings(iwing)%af1_text = trim(cval)
-        airfoils(iairfoil)%name = trim(t%wings(iwing)%af1_text)
-        call t%json%get('wings.'//trim(j_wing%name)//'.root_airfoil.properties',  j_afprop);
-        if(json_failed()) then !Read from airfoil database
-            call json_clear_exceptions()
-            call plane_load_airfoil(t,iairfoil,'',0)
-        else !Read from local file
-            call plane_load_airfoil(t,iairfoil,'wings.'//trim(j_wing%name)//'.root_airfoil.',1)
-        end if
-        t%wings(iwing)%af1 => airfoils(iairfoil)
+        ! Read Airfoils
+        call t%json%get('wings.'//trim(j_wing%name)//'.airfoils', j_afread)
+        nairfoils = json_value_count(j_afread) !just for this wing
+        t%wings(iwing)%nairfoils = nairfoils
+        call wing_allocate_airfoils(t%wings(iwing))
 
-        !Tip Airfoil
-        iairfoil = iairfoil + 1
-        call t%json%get('wings.'//trim(j_wing%name)//'.tip_airfoil.name',                    cval); call json_check()
-                                                                                t%wings(iwing)%af2_text = trim(cval)
-        airfoils(iairfoil)%name = trim(t%wings(iwing)%af2_text)
-        call t%json%get('wings.'//trim(j_wing%name)//'.tip_airfoil.properties',  j_afprop);
-        if(json_failed()) then !Read from airfoil database
-            call json_clear_exceptions()
-            call plane_load_airfoil(t,iairfoil,'',0)
-        else !Read from local file
-            call plane_load_airfoil(t,iairfoil,'wings.'//trim(j_wing%name)//'.tip_airfoil.',1)
-        end if
-        t%wings(iwing)%af2 => airfoils(iairfoil)
-
+        do iaf = 1, nairfoils
+            iairfoil = iairfoil + 1
+            call json_value_get(j_afread,iaf,json_command)
+            airfoils(iairfoil)%name = trim(json_command%name)
+            call t%json%get('wings.'//trim(j_wing%name)//'.airfoils.'//trim(json_command%name)//'.properties',  j_afprop);
+            if(json_failed()) then !Read from airfoil database
+                call json_clear_exceptions()
+                call plane_load_airfoil(t,iairfoil,trim(json_command%name)//'.',0)
+            else !Read from local file
+                call plane_load_airfoil(t,iairfoil,'wings.'//trim(j_wing%name)//'.airfoils.'//trim(json_command%name)//'.',1)
+            end if
+            t%wings(iwing)%airfoils(iaf)%p => airfoils(iairfoil)
+        end do
 
 
         call t%json%get('wings.'//trim(j_wing%name)//'.grid',             t%wings(iwing)%nSec); call json_check()
@@ -522,8 +516,8 @@ subroutine plane_write_json_file(t,filename)
         call json_value_add(        p_wingi, 'washout',          t%wings(iwing)%washout*180.0/pi)
         call json_value_add(        p_wingi, 'root_chord',       t%wings(iwing)%chord_1)
         call json_value_add(        p_wingi, 'tip_chord',        t%wings(iwing)%chord_2)
-        call json_value_add(        p_wingi, 'root_airfoil',     trim(t%wings(iwing)%af1_text))
-        call json_value_add(        p_wingi, 'tip_airfoil',      trim(t%wings(iwing)%af2_text))
+!        call json_value_add(        p_wingi, 'root_airfoil',     trim(t%wings(iwing)%af1_text))
+!        call json_value_add(        p_wingi, 'tip_airfoil',      trim(t%wings(iwing)%af2_text)) !Fix this
         call json_value_add(        p_wingi, 'grid',             t%wings(iwing)%nSec)
 
         !Write Distribution Files

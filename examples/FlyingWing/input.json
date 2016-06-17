@@ -67,8 +67,10 @@
 		"washout": 0.0,
 		"root_chord": 1.0,
 		"tip_chord":  1.0,
-		"root_airfoil": {"name" : "NACA_2410"},
-		"tip_airfoil": {"name" : "NACA_8410"},
+        "airfoils" : {
+            "NACA_2410" : "",
+            "NACA_4410" : ""
+        },
 		"grid": 100,
         "control" : {
             "span_root" : 0.7,
