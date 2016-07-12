@@ -79,7 +79,7 @@ end subroutine wing_deallocate
 subroutine wing_setup(t,start)
     type(wing_t) :: t
     type(section_t),pointer :: si
-    integer :: isec,iaf
+    integer :: i, isec, iaf
     REAL :: dtheta
     real :: start(3),qvec(3),nvec(3),avec(3),fvec(3),percent_1,percent_2,percent_c,chord_1,chord_2,RA,span
     real :: my_sweep,my_dihedral,my_twist,temp
@@ -105,6 +105,15 @@ subroutine wing_setup(t,start)
     end if
     if(t%f_af_ratio .ne. 'none') then
         t%is_linear = 0; call ds_create_from_file(data_af_ratio,t%f_af_ratio,2)
+        do i = 1, data_af_ratio%datasize
+            if(data_af_ratio%RawData(i, 2) < 0.0 .or. &
+             & data_af_ratio%RawData(i, 2) > t%nairfoils - 1) then
+                write(*,*) 'Error: Airfoil ratio file "', trim(t%f_af_ratio), &
+                    & '" specifies airfoil ratios that are outside the', &
+                    & ' allowable limits of 0 to ', t%nairfoils - 1
+                STOP
+            end if
+        end do
     end if
     if(t%f_elastic_twist .ne. 'none') then
         t%is_linear = 0; call ds_create_from_file(data_elastic_twist,t%f_elastic_twist,2)
@@ -146,9 +155,9 @@ span = 0.0
         my_twist = t%mount - percent_c*t%washout
 
         ! % airfoil 0=airfoil1, 1=airfoil2, 2=airfoil3
-        percent_c_af = percent_c*real(t%nairfoils-1)
-        percent_1_af = percent_1*real(t%nairfoils-1)
-        percent_2_af = percent_2*real(t%nairfoils-1)
+        percent_c_af = percent_c*REAL(t%nairfoils-1)
+        percent_1_af = percent_1*REAL(t%nairfoils-1)
+        percent_2_af = percent_2*REAL(t%nairfoils-1)
 
         !For geometry purposes
         sweep1 = my_sweep
@@ -250,13 +259,13 @@ span = 0.0
 
         si%zeta(:) = si%chord_c*si%dl(:)/si%ds
         si%Rroot(:) = si%PC(:) - t%root(:)
-        
+
         !setup airfoils for section
         call wing_get_airfoil_weighting(t,percent_c_af,si%af_weight_c,si%afc_a,si%afc_b)
 !        write(*,*) si%percent_c,percent_c_af,si%af_weight_c,trim(si%afc_a%name),trim(si%afc_b%name)
         call wing_get_airfoil_weighting(t,percent_1_af,si%af_weight_1,si%af1_a,si%af1_b)
         call wing_get_airfoil_weighting(t,percent_2_af,si%af_weight_2,si%af2_a,si%af2_b)
-        
+
         !Add flaps
         si%cf_c = 0.0
         if(t%has_control_surface .eq. 1) then
@@ -306,14 +315,13 @@ subroutine wing_get_airfoil_weighting(t,percent,weight,af1,af2)
     real, intent(out) :: weight ! weighting of bounding airfoils
     type(airfoil_t),pointer,intent(out) :: af1,af2 !pointers to bounding airfoils
     integer :: lo,hi
-    
-    lo = min(max(floor(percent),0) + 1, t%nairfoils)
-    hi = min(lo+1,t%nairfoils)
-    weight = percent - real(lo-1)
-    
-    if(weight<0.0) then
-        hi = lo
-    end if
+    real :: pct
+
+    pct = min(max(percent, 0.0), REAL(t%nairfoils) - 1.0)
+    lo = floor(pct) + 1
+    hi = min(lo + 1, t%nairfoils)
+    weight = pct - REAL(lo - 1)
+
     if(hi.eq.lo) weight = 0.0
 
     af1 => t%airfoils(lo)%p

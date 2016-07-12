@@ -76,7 +76,7 @@ subroutine sf_distributions(t,json_command)
                               & si%chord_c,si%twist*180.0/pi,si%sweep*180.0/pi,si%dihedral*180.0/pi,&
                               & si%ds,&
                               & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r,&
-                              & sec_alpha_L0(si)
+                              & sec_alpha_L0(si)*180.0/pi
             end do
 !            write(10,*)
         end do
