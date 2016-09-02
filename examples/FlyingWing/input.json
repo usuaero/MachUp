@@ -1,7 +1,14 @@
 {
-"airfoil_DB": ".",
+"airfoil_DB": "../AirfoilDatabase",
 "run": {
     "stl" : "",
+<<<<<<< HEAD
+    "forces" : "",
+    "distributions" : {"output" : "json"},
+    "derivatives" : "",
+    "aerocenter" : "",
+    "targetcl" : {"CL" : 0.5},
+=======
     "forces" : {"run" : 0},
     "distributions" : {
         "output" : "txt"
@@ -15,6 +22,7 @@
         "CL" : 0.4,
         "Cm" : 0.0
     },
+>>>>>>> master
     "report" : {
         "fitness" : {
             "name" : "total.myairplane.CD",
@@ -22,16 +30,17 @@
         },
         "Cl" : {"name" : "total.myairplane.Cl", "file" : "input_forces.json"},
         "CL" : {"name" : "CL", "file" : "input_targetCL.json"}
-    }
+    },
+    "pitchtrim" : {"CL" : 0.4,"Cm" : 0.0}
 },
 "solver":{
 	"type" : "nonlinear",
 	"convergence" : 1.0e-10,
-	"relaxation": 0.5
+	"relaxation": 0.9
 },
 "plane": {
 	"name": "myairplane",
-	"CGx": 0.0,
+	"CGx": -0.4,
 	"CGy": 0.0,
 	"CGz": 0.0
 },
@@ -68,46 +77,30 @@
             "yoffset" : 0.0
 		},
 		"span": 4.0,
+<<<<<<< HEAD
+		"sweep": 12.0,
+=======
 		"sweep": 10.0,
+>>>>>>> master
 		"dihedral": 0.0,
 		"mounting_angle": 0.0,
 		"washout": 0.0,
 		"root_chord": 1.0,
 		"tip_chord":  1.0,
-		"root_airfoil": {
-            "name" : "NACA_0009",
-            "properties": {
-                "type": "linear",
-                "alpha_L0" : 0.0,
-                "CL_alpha" : 6.28318530717959,
-                "Cm_L0" : 0.0,
-                "Cm_alpha" : 0.0,
-                "CD_min" : 0.0,
-                "CL_max" : 1.4
-            }
-        },
-		"tip_airfoil": {
-            "name" : "NACA_0009",
-            "properties": {
-                "type": "linear",
-                "alpha_L0" : 0.0,
-                "CL_alpha" : 6.28318530717959,
-                "Cm_L0" : 0.0,
-                "Cm_alpha" : 0.0,
-                "CD_min" : 0.0,
-                "CL_max" : 1.4
-            }
+        "airfoils" : {
+            "NACA_2410" : "",
+            "NACA_4410" : ""
         },
 		"grid": 100,
         "control" : {
-            "span_root" : 0.5,
-            "span_tip" : 0.8,
-            "chord_root" : 0.2,
-            "chord_tip" : 0.2,
+            "span_root" : 0.7,
+            "span_tip" : 0.9,
+            "chord_root" : 0.25,
+            "chord_tip" : 0.25,
             "is_sealed" : 1,
             "mix" : {
                 "aileron" : 1.0,
-                "elevator" : 0.0
+                "elevator" : 1.0
             }
         }
 	}
