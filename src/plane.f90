@@ -710,10 +710,15 @@ end subroutine plane_case_setup
 subroutine plane_set_Uinf(t)
     type(plane_t) :: t
     real :: denom
-    denom = sqrt(1.0 + tan(t%alpha)**2 + tan(t%beta)**2)
-    t%Uinf(1) = -1.0/denom
-    t%Uinf(2) = -tan(t%beta)/denom
-    t%Uinf(3) = -tan(t%alpha)/denom
+    denom = sqrt(1.0 - sin(t%alpha)**2 * sin(t%beta)**2)
+    t%Uinf(1) = -(cos(t%alpha) * cos(t%beta))/denom
+    t%Uinf(2) = -(cos(t%alpha) * sin(t%beta))/denom
+    t%Uinf(3) = -(sin(t%alpha) * cos(t%beta))/denom
+!old code - assumes all angles are less than 90 deg
+!    denom = sqrt(1.0 + tan(t%alpha)**2 + tan(t%beta)**2)
+!    t%Uinf(1) = -1.0/denom
+!    t%Uinf(2) = -tan(t%beta)/denom
+!    t%Uinf(3) = -tan(t%alpha)/denom
 end subroutine plane_set_Uinf
 
 !-----------------------------------------------------------------------------------------------------------
