@@ -2,27 +2,11 @@
 "airfoil_DB": "../AirfoilDatabase",
 "run": {
     "stl" : "",
-<<<<<<< HEAD
     "forces" : "",
     "distributions" : {"output" : "json"},
     "derivatives" : "",
     "aerocenter" : "",
     "targetcl" : {"CL" : 0.5},
-=======
-    "forces" : {"run" : 0},
-    "distributions" : {
-        "output" : "txt"
-    },
-    "derivatives" : {"run" : 1},
-    "stallonset" : "",
-    "aerocenter" : "",
-    "targetcl" : {"CL" : 0.5},
-    "spanloads" : {"filename" : "0.5.txt"},
-    "pitchtrim" : {
-        "CL" : 0.4,
-        "Cm" : 0.0
-    },
->>>>>>> master
     "report" : {
         "fitness" : {
             "name" : "total.myairplane.CD",
@@ -77,11 +61,7 @@
             "yoffset" : 0.0
 		},
 		"span": 4.0,
-<<<<<<< HEAD
 		"sweep": 12.0,
-=======
-		"sweep": 10.0,
->>>>>>> master
 		"dihedral": 0.0,
 		"mounting_angle": 0.0,
 		"washout": 0.0,

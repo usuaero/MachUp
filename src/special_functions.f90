@@ -1,7 +1,11 @@
 module special_functions_m
+#ifdef dnad
+    use dnadmod
+#define real type(dual)
+#endif
     use plane_m
     implicit none
-    
+
 contains
 
 !-----------------------------------------------------------------------------------------------------------
@@ -31,7 +35,7 @@ subroutine sf_distributions(t,json_command)
     else
         output_type = trim(cval)
     end if
-    
+
     if(trim(adjustl(output_type)).eq.'json') then
         filename = trim(adjustl(filename))//'.json'
         open(unit = 10, File = filename, action = 'write', iostat = ierror)
@@ -40,7 +44,7 @@ subroutine sf_distributions(t,json_command)
         write(10,'(A75)',advance="no") 'ControlPoint(z)          Chord                    Twist(deg)               '
         write(10,'(A75)',advance="no") 'Sweep(deg)               Dihedral(deg)            Area                     '
         write(10,'(A75)',advance="no") 'Alpha(deg)               Section_CL               Section_CD_parasitic     '
-        write(10,'(A34)',advance="no") 'Section_Cm               Global_CL'
+        write(10,'(A75)',advance="no") 'Section_Cm               CL(Ref)                  Section_alpha_L0(deg)    '
         do iwing=1,t%nwings
             write(10,'(A7)',advance="no") 'newline'
             do isec=1,t%wings(iwing)%nSec
@@ -48,7 +52,8 @@ subroutine sf_distributions(t,json_command)
                 write(10,120,advance="no") t%wings(iwing)%name,si%PC(:),&
                               & si%chord_c,si%twist*180.0/pi,si%sweep*180.0/pi,si%dihedral*180.0/pi,&
                               & si%ds,&
-                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r
+                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r,&
+                              & sec_alpha_L0(si)*180.0/pi
                 write(10,'(A7)',advance="no") 'newline'
             end do
         end do
@@ -63,14 +68,15 @@ subroutine sf_distributions(t,json_command)
         write(10,'(A75)',advance="no") 'ControlPoint(z)          Chord                    Twist(deg)               '
         write(10,'(A75)',advance="no") 'Sweep(deg)               Dihedral(deg)            Area                     '
         write(10,'(A75)',advance="no") 'Section_Alpha(deg)       Section_CL               Section_CD_parasitic     '
-        write(10,'(A34)')              'Section_Cm               Global_CL'
+        write(10,'(A75)')              'Section_Cm               CL(Ref)                  Section_alpha_L0(deg)    '
         do iwing=1,t%nwings
             do isec=1,t%wings(iwing)%nSec
                 si => t%wings(iwing)%sec(isec)
                 write(10,120) t%wings(iwing)%name,si%PC(:),&
                               & si%chord_c,si%twist*180.0/pi,si%sweep*180.0/pi,si%dihedral*180.0/pi,&
                               & si%ds,&
-                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r
+                              & si%alpha*180.0/pi,sec_CL(si),sec_CD(si),sec_Cm(si),sec_CL(si)*si%chord_c/t%long_r,&
+                              & sec_alpha_L0(si)*180.0/pi
             end do
 !            write(10,*)
         end do
@@ -78,7 +84,7 @@ subroutine sf_distributions(t,json_command)
     end if
 
     write(*,'(A)') 'Distribution results written to: '//trim(filename)
-    
+
 end subroutine sf_distributions
 
 !-----------------------------------------------------------------------------------------------------------
@@ -89,7 +95,7 @@ subroutine sf_derivs_stability(t)
     real,allocatable,dimension(:,:,:) :: dF,dM !Global Forces and Moments
     real,allocatable,dimension(:,:) :: dL,dD,dLoD !Global Lift, Drag, and L/D
     real :: delta,alpha,beta
-    real :: CLa,CDa,Cma,CYb,Clb,Cnb
+    real :: CLa,Cma
 
     allocate(dF(t%nrealwings+1,3,3))
     allocate(dM(t%nrealwings+1,3,3))
@@ -101,7 +107,7 @@ subroutine sf_derivs_stability(t)
     alpha = t%alpha
     beta = t%beta
     note = "Derivatives with respect to angle in radians."
-    
+
     write(*,*)
     write(*,*) '---------- Stability Derivatives -----------'
 
@@ -153,7 +159,6 @@ subroutine sf_derivs_control(t)
     real,allocatable,dimension(:,:) :: dL,dD,dLoD !Global Lift, Drag, and L/D
     integer :: icontrol
     real :: delta, deflection
-    real :: CLa,CDa,Cma,CYb,Clb,Cnb
 
     allocate(dF(t%nrealwings+1,3,3))
     allocate(dM(t%nrealwings+1,3,3))
@@ -219,7 +224,7 @@ subroutine sf_derivs_damping(t)
     dL = 0.5/delta*(dL - t%GL)*2.0/lref; dD = 0.5/delta*(dD - t%GD)*2.0/lref; dLoD = 0.5/delta*(dLoD - t%GLoD)*2.0/lref;
     call sf_append_json_file(t,name,dF,dM,dL,dD,dLoD,note);
     t%omega(1) = omega_orig(1)
-    
+
     name = 'pbar'
     call sf_write_derivs_to_screen(dL(t%nrealwings+1,3),dD(t%nrealwings+1,3),dF(t%nrealwings+1,3,:),dM(t%nrealwings+1,3,:),name)
 
@@ -266,7 +271,6 @@ end subroutine sf_derivs_damping
 
 !-----------------------------------------------------------------------------------------------------------
 subroutine sf_write_derivs_to_screen(dL,dD,dF,dM,name)
-    type(plane_t) :: t
     character(100) :: name
     real:: dL, dD, dF(3), dM(3)
 
@@ -286,7 +290,7 @@ subroutine sf_start_json_file(t,json_command)
     type(json_value),intent(in),pointer :: json_command
     character(len=:),allocatable :: cval
     character(100) :: filename
- 
+
     !Get filename if specified
     call json_get(json_command,'filename', cval,json_found);
     if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
@@ -336,7 +340,7 @@ subroutine sf_end_json_file(t)
     type(plane_t) :: t
     character(100) :: filename
     integer :: iunit
- 
+
     !Write File
     filename = trim(adjustl(t%master_filename))//'_derivatives.json'
 !    write(*,'(A)') 'writing file '//trim(filename)//'...'
@@ -366,7 +370,7 @@ subroutine sf_aerocenter(t,json_command)
     alpha = t%alpha
     CG(:) = t%CG(:)
     t%CG(:) = 0.0
-    
+
     write(*,*)
     write(*,*) '---------- Aerodynamic Center  -----------'
 
@@ -376,7 +380,7 @@ subroutine sf_aerocenter(t,json_command)
     CA(1)  = -t%GF(t%nrealwings+1,3,1)
     CN(1)  = -t%GF(t%nrealwings+1,3,3)
     Cm0(1) =  t%GM(t%nrealwings+1,3,2)
-    
+
     t%alpha = alpha
     call plane_run_current(t)
     CA(2)  = -t%GF(t%nrealwings+1,3,1)
@@ -399,9 +403,9 @@ subroutine sf_aerocenter(t,json_command)
     Cm0aa = (Cm0(1) - 2.0*Cm0(2) + Cm0(3))/delta/delta
 
     denom = CNa*CAaa - CAa*CNaa
-    
-    xac = (CAa*Cm0aa - Cm0a*CAaa)/denom 
-    zac = (CNa*Cm0aa - Cm0a*CNaa)/denom 
+
+    xac = (CAa*Cm0aa - Cm0a*CAaa)/denom
+    zac = (CNa*Cm0aa - Cm0a*CNaa)/denom
     Cmac = Cm0(2) + xac*CN(2) - zac*CA(2)
 
     xac = -xac*t%long_r    !negative because in stability coordinates, not aero coordinates
@@ -448,7 +452,6 @@ subroutine sf_stallonset(t,json_command)
     type(json_value),intent(in),pointer :: json_command
     character(len=:),allocatable :: cval
     type(section_t),pointer :: si
-    character(100) :: name
     character(1000) :: note
     real :: alpha,maxdiff,start_alpha
     integer :: ialpha,iwing,isec,stalled,swing,ssec
@@ -458,8 +461,9 @@ subroutine sf_stallonset(t,json_command)
 
     alpha = t%alpha !store to reset after finished
     note = "Linear Stall Onset."
-    
-    start_alpha = json_optional_real(json_command,'start_alpha',0.0); start_alpha = (start_alpha+1.0)*pi/180.0
+
+    call myjson_get(json_command, 'start_alpha', start_alpha, 0.0)
+    start_alpha = (start_alpha+1.0)*pi/180.0  ! Add 1 degree, but ialpha loop starts at i=-10
 
     write(*,*)
     write(*,*) '---------- Evaluating Stall Onset -----------'
@@ -469,7 +473,7 @@ subroutine sf_stallonset(t,json_command)
     stalled = 0
     maxdiff = 0.0
     do ialpha = -10, 300, 1
-        t%alpha = real(ialpha)/10.0*pi/180.0 + start_alpha
+        t%alpha = REAL(ialpha)/10.0*pi/180.0 + start_alpha
         call plane_run_current(t)
         write(*,*) t%alpha*180.0/pi,t%GL(t%nrealwings+1,3)
         do iwing=1,t%nwings
@@ -510,7 +514,7 @@ subroutine sf_stallonset(t,json_command)
     call json_value_add( p_root, 'CL',   t%GL(t%nrealwings+1,3))
     call json_value_add( p_root, 'wing',   trim(t%wings(swing)%name))
     call json_value_add( p_root, 'spanLocation',   si%percent_c)
-    
+
     !Write File
     open(newunit=iunit, file=filename, status='REPLACE')
     call json_print(p_root,iunit)
@@ -549,7 +553,7 @@ subroutine sf_pitch_trim(t,json_command)
 
     write(*,*)
     write(*,*) '---------- Trimming Aircraft in Pitch -----------'
-    
+
     !Get control surface name
     call json_get(json_command,'control', cval,json_found);
     if(json_failed() .or. (trim(cval).eq.'')) then !No control surface specified
@@ -579,38 +583,39 @@ subroutine sf_pitch_trim(t,json_command)
         close(iunit)
         return
     end if
-    
+
     write(*,*) 'Using control surface: ',trim(controlname)
 
-    call json_get(json_command,'CL',CL_target,json_found)
+    call myjson_get(json_command, 'CL', CL_target, -1.0)  !!??? Is it ever ok for CL < 0? Use NOTDEFD?
+!    call json_get(json_command,'CL',CL_target,json_found)
 
-    if(json_failed()) then !Trim using Cw, and thrust !Not done yet. Fix this!
+    if(CL_target < 0.0) then !Trim using Cw, and thrust !Not done yet. Fix this!
         call json_clear_exceptions()
         trimType = 2
 
-        CW_target = json_required_real(json_command,'CW');
-        climb    = json_optional_real(json_command,'climb',0.0); climb = climb*pi/180.0
-        thrust_x = json_optional_real(json_command,'thrust.x',0.0);
-        thrust_z = json_optional_real(json_command,'thrust.z',0.0);
-        thrust_a = json_optional_real(json_command,'thrust.angle',0.0);
+        call myjson_get(json_command, 'CW', CW_target)
+        call myjson_get(json_command, 'climb', climb, 0.0); climb = climb*pi/180.0
+        call myjson_get(json_command, 'thrust.x', thrust_x, 0.0);
+        call myjson_get(json_command, 'thrust.z', thrust_z, 0.0);
+        call myjson_get(json_command, 'thrust.angle', thrust_a, 0.0);
 
     else !trim using CL, Cm
         trimType = 1
-        Cm_target = json_optional_real(json_command,'Cm',0.0);
+        call myjson_get(json_command, 'Cm', Cm_target, 0.0);
     end if
 
     !store alpha and de in case no solution is found
     alpha_temp = t%alpha !radians
     de_temp = t%controls(icontrol)%deflection !radians
-    
+
     icontrol = found
     alpha = t%alpha !radians
     de = t%controls(icontrol)%deflection !radians
 
-    delta  = json_optional_real(json_command,'delta',0.5);
-    maxres = json_optional_real(json_command,'convergence',1.0e-10);
-    relaxation = json_optional_real(json_command,'relaxation',1.0);
-    maxiter = json_optional_integer(json_command,'maxiter',50);
+    call myjson_get(json_command, 'delta', delta, 0.5);
+    call myjson_get(json_command, 'convergence', maxres, 1.0e-10);
+    call myjson_get(json_command, 'relaxation', relaxation, 1.0);
+    call myjson_get(json_command, 'maxiter', maxiter, 50);
 
     write(*,*)
     write(*,*) '    derivative step size [deg] = ',delta
@@ -622,10 +627,10 @@ subroutine sf_pitch_trim(t,json_command)
                   &Cm                        CL_Residual              Cm_Residual'
     call sf_pitch_trim_residual(t,icontrol,alpha,de,CL_target,Cm_target,residual(:))
     write(*,*) alpha*180.0/pi,de*180.0/pi,t%GL(t%nrealwings+1,3), t%GM(t%nrealwings+1,3,2), residual(:)
-    
+
     iter = 0
     do while ((abs(residual(1)) + abs(residual(2))) > maxres)
-        
+
         alpha = alpha + delta
         call sf_pitch_trim_residual(t,icontrol,alpha,de,CL_target,Cm_target,ans1(:))
         alpha = alpha - 2.0*delta
@@ -641,19 +646,19 @@ subroutine sf_pitch_trim(t,json_command)
         de = de + delta
 
         gradient(:,2) = (ans1(:) - ans2(:))/2.0/delta
-        
+
 !        write(*,*) 'gradient'
 !        write(*,*) gradient(1,:)
 !        write(*,*) gradient(2,:)
-        
+
         call math_snyder_ludcmp(gradient,2)
         call math_snyder_lusolv(gradient,-residual,dG,2)
-        
+
 !        write(*,*) 'dG'
 !        write(*,*) dG(1)*180.0/pi
 !        write(*,*) dG(2)*180.0/pi
 !        write(*,*)
-        
+
         if((dG(1).ne.dG(1)) .or. (dG(2).ne.dG(2))) then
             write(*,*) 'Error: Control surface not set to affect pitch trim.'
             t%alpha  = alpha_temp !radians
@@ -728,7 +733,7 @@ subroutine sf_pitch_trim_residual(t,icontrol,alpha,de,CL_target,Cm_target,ans)
     ans(1) = t%GL(t%nrealwings+1,3) - CL_target
     ans(2) = t%GM(t%nrealwings+1,3,2) - Cm_target
 !write(*,*) alpha*180.0/pi,de*180.0/pi,t%GL(t%nrealwings+1,3), t%GM(t%nrealwings+1,3,2),ans(:)
-            
+
 end subroutine sf_pitch_trim_residual
 
 !-----------------------------------------------------------------------------------------------------------
@@ -755,18 +760,18 @@ subroutine sf_target_CL(t,json_command)
 
     write(*,*)
     write(*,*) '---------- Finding alpha to target CL -----------'
-    
-    CL_target = json_required_real(json_command,'CL');
+
+    call myjson_get(json_command, 'CL', CL_target);
 
     !store alpha and de in case no solution is found
     alpha_temp = t%alpha !radians
-    
+
     alpha = 0.0 !t%alpha !radians
 
-    delta  = json_optional_real(json_command,'delta',0.5);
-    maxres = json_optional_real(json_command,'convergence',1.0e-10);
-    relaxation = json_optional_real(json_command,'relaxation',1.0);
-    maxiter = json_optional_integer(json_command,'maxiter',50);
+    call myjson_get(json_command, 'delta', delta, 0.5);
+    call myjson_get(json_command, 'convergence', maxres, 1.0e-10);
+    call myjson_get(json_command, 'relaxation', relaxation, 1.0);
+    call myjson_get(json_command, 'maxiter', maxiter, 50);
 
     write(*,*)
     write(*,*) '    derivative step size [deg] = ',delta
@@ -777,10 +782,10 @@ subroutine sf_target_CL(t,json_command)
     write(*,*) '   alpha[deg]                CL                        CL_Residual'
     call sf_target_CL_residual(t,alpha,CL_target,residual)
     write(*,*) alpha*180.0/pi,t%GL(t%nrealwings+1,3), residual
-    
+
     iter = 0
     do while (abs(residual) > maxres)
-        
+
         alpha = alpha + delta
         call sf_target_CL_residual(t,alpha,CL_target,ans1)
         alpha = alpha - 2.0*delta
@@ -788,7 +793,7 @@ subroutine sf_target_CL(t,json_command)
         alpha = alpha + delta
 
         gradient = (ans1 - ans2)/2.0/delta
-        
+
         alpha = alpha - relaxation*residual/gradient
 
         call sf_target_CL_residual(t,alpha,CL_target,residual)
@@ -843,16 +848,14 @@ end subroutine sf_target_CL_residual
 !-----------------------------------------------------------------------------------------------------------
 subroutine sf_target(t)
     type(plane_t) :: t
-    character(len=:),allocatable :: cval
-    character(100) :: target_var, change_var, fitness_var, fn
-    real :: result,x0,x1,xnew,f0,f1, target_val, fitness_val, tolerance
-    integer :: ios
-    
+    character(len=:), allocatable :: target_var, change_var
+    real :: result,x0,x1,xnew,f0,f1, target_val, tolerance
+
     !Read json target info
-    call t%json%get('run.target.variable',        cval);   call json_check();   target_var = trim(cval)
-    call t%json%get('run.target.value',     target_val);   call json_check()
-    call t%json%get('run.target.tolerance',  tolerance);   call json_check()
-    call t%json%get('run.target.change',          cval);   call json_check();   change_var = trim(cval)
+    call myjson_get(t%json, 'run.target.variable', target_var)
+    call myjson_get(t%json, 'run.target.value', target_val)
+    call myjson_get(t%json, 'run.target.tolerance', tolerance )
+    call myjson_get(t%json, 'run.target.change', change_var)
 
     write(*,*) '    target variable = ',trim(target_var)
     write(*,*) '       target value = ',target_val
@@ -896,7 +899,7 @@ subroutine sf_report(t,json_command)
     type(plane_t) :: t
     type(json_value),intent(in),pointer :: json_command
     type(json_file) :: f_json    !the JSON structure read from the file
-    type(json_value), pointer :: c_var,p_root, p_values
+    type(json_value), pointer :: c_var,p_root
     character(len=:),allocatable :: cval
     character(100) :: filename,var_name, var_file
     real :: var_value
@@ -922,10 +925,11 @@ subroutine sf_report(t,json_command)
         if(trim(c_var%name).eq.'run') cycle
         call json_get(json_command,trim(c_var%name)//'.name', cval,json_found); call json_check(); var_name = trim(cval)
         call json_get(json_command,trim(c_var%name)//'.file', cval,json_found); call json_check(); var_file = trim(cval)
-        save_file = json_optional_integer(json_command,trim(c_var%name)//'.save',0);
-        
+        call myjson_get(json_command,trim(c_var%name)//'.save', save_file, 0);
+
         call f_json%load_file(filename = var_file);       call json_check()
-        call f_json%get(trim(var_name),   var_value);     call json_check()
+        call myjson_get(f_json, trim(var_name), var_value)
+!        call f_json%get(trim(var_name),   var_value);     call json_check()
         call json_value_add(p_root, trim(c_var%name), var_value)
         write(*,*) '   ',trim(c_var%name),' set from ',trim(var_name),' in file ',trim(var_file),' = ',var_value
         if(save_file .eq. 1) then
@@ -943,7 +947,7 @@ subroutine sf_report(t,json_command)
     open(newunit=iunit, file=filename, status='REPLACE')
     call json_print(p_root,iunit)
     close(iunit)
-    call json_destroy(p_root)    
+    call json_destroy(p_root)
 end subroutine sf_report
 
 !-----------------------------------------------------------------------------------------------------------
@@ -954,14 +958,14 @@ subroutine sf_fitness_old(t)
     character(100) :: fitness_var, fn
     real :: fitness_val
     integer :: ios
-    
+
     !Evaluate Fitness Function if present
     call json_clear_exceptions()
     call t%json%get('run.fitness.variable',    cval);   call json_check();    fitness_var = trim(cval)
     call t%json%get('run.fitness.file',        cval);   call json_check();    fn = trim(cval)
-    
+
     call f_json%load_file(filename = fn);                  call json_check()
-    call f_json%get(trim(fitness_var),   fitness_val);     call json_check()
+    call myjson_get(f_json, trim(fitness_var), fitness_val)
 
     open(unit = 10, File = 'fitness.txt', action = 'write', iostat = ios)
     write(10,'(2ES25.16)') fitness_val
@@ -974,24 +978,24 @@ subroutine sf_optimize(t)
     type(plane_t) :: t
     type(json_file) :: f_json    !the JSON structure read from the file:
     character(len=:),allocatable :: cval
-    character(100) :: fitness_var, fn
+    character(100) :: fn
     real :: fitness_val, Cl, CD, Cn
     integer :: ios, opt_type
-    
+
     !Evaluate Fitness Function if present
     call json_clear_exceptions()
     call t%json%get('run.optimize.type',    opt_type);   call json_check();
     call t%json%get('run.fitness.file',        cval);   call json_check();    fn = trim(cval)
-    
+
     call f_json%load_file(filename = fn);                  call json_check()
-    call f_json%get('total.MyAirplane.CD',   CD);     call json_check()
-    call f_json%get('total.Wing_1_left.Cl',   Cl);     call json_check()
-    call f_json%get('total.Wing_1_left.Cn',   Cn);     call json_check()
+    call myjson_get(f_json, 'total.MyAirplane.CD', CD)
+    call myjson_get(f_json, 'total.MyAirplane.Cl', Cl)
+    call myjson_get(f_json, 'total.MyAirplane.Cn', Cn)
 
     if(opt_type.eq.1) then
         fitness_val = 1.0*sqrt((Cl-0.052950639579748)**2)+CD
     end if
-    
+
 
     open(unit = 10, File = 'fitness.txt', action = 'write', iostat = ios)
     write(10,'(2ES25.16)') fitness_val
@@ -1004,7 +1008,7 @@ subroutine sf_set_variable(t,set_var,value)
     type(plane_t) :: t
     character(100) :: set_var
     real :: value
-    
+
     if(set_var.eq.'condition.alpha') t%alpha = value*pi/180.0
     if(set_var.eq.'condition.beta') t%beta = value*pi/180.0
 
@@ -1012,12 +1016,13 @@ subroutine sf_set_variable(t,set_var,value)
     if(set_var.eq.'cg_y') t%CG(2) = value
     if(set_var.eq.'cg_z') t%CG(3) = value
 end subroutine sf_set_variable
-                
+
 !-----------------------------------------------------------------------------------------------------------
 subroutine sf_run_single(t,read_var,result) !this can only handle run force calls. no derivatives yet.
     type(plane_t) :: t
     type(json_file) :: f_json    !the JSON structure read from the file:
-    character(100) :: read_var,fn,command
+    character(100) :: read_var,fn
+    character(120) :: command
     real :: result
 
     fn = trim(adjustl(t%master_filename))//'_sub.json'
@@ -1027,7 +1032,7 @@ subroutine sf_run_single(t,read_var,result) !this can only handle run force call
     call system(command)
     fn = trim(adjustl(t%master_filename))//'_sub_forces.json'
     call f_json%load_file(filename = fn);          call json_check()
-    call f_json%get(trim(read_var),   result);     call json_check()
+    call myjson_get(f_json, trim(read_var), result)
 
 end subroutine sf_run_single
 

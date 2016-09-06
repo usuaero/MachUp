@@ -87,6 +87,11 @@ program main
                     call sf_derivs_control(myplane)
                     call sf_derivs_damping(myplane)
                     call sf_end_json_file(myplane)
+                case ('damping')
+                    myplane%verbose = 0
+                    call sf_start_json_file(myplane,json_command)
+                    call sf_derivs_damping(myplane)
+                    call sf_end_json_file(myplane)
                 case ('aerocenter')
                     myplane%verbose = 0
                     call sf_aerocenter(myplane,json_command)
