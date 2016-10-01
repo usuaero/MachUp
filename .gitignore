@@ -1,0 +1,9 @@
+*
+!*/
+bin/
+debug/
+build/
+!*.f90
+!*.F90
+!.gitignore
+!CMakeLists.txt
