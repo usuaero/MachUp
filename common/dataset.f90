@@ -109,7 +109,11 @@ subroutine ds_read_file(t,filename,dim)
     open(unit = 100, File = filename, action = "read", iostat = ios)
     read(100,*) !header line
     do irow=1,t%datasize
+#ifndef dnad
         read(100,*,iostat=ios) t%RawData(irow,:)
+#else
+        read(100,*,iostat=ios) t%RawData(irow,:)%x
+#endif
     end do
     close(100)
 
