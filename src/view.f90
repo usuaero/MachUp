@@ -351,6 +351,8 @@ subroutine view_add_stl_triangle(P1,P2,P3)
     110 Format(A15, 3ES25.13)
 
     call math_plane_normal(P1,P2,P3,norm)
+
+#ifndef dnad
     write(10,110) 'facet normal ',norm(:)
     write(10,*) 'outer loop'
     write(10,110) 'vertex ',P1(:)
@@ -358,6 +360,15 @@ subroutine view_add_stl_triangle(P1,P2,P3)
     write(10,110) 'vertex ',P3(:)
     write(10,*) 'endloop'
     write(10,*) 'endfacet'
+#else
+    write(10,110) 'facet normal ',norm(:)%x
+    write(10,*) 'outer loop'
+    write(10,110) 'vertex ',P1(:)%x
+    write(10,110) 'vertex ',P2(:)%x
+    write(10,110) 'vertex ',P3(:)%x
+    write(10,*) 'endloop'
+    write(10,*) 'endfacet'
+#endif
 
 !    write(20,120) P1(:),P2(:),P3(:)
 end subroutine view_add_stl_triangle

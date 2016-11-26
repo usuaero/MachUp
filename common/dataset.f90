@@ -113,6 +113,7 @@ subroutine ds_read_file(t,filename,dim)
         read(100,*,iostat=ios) t%RawData(irow,:)
 #else
         read(100,*,iostat=ios) t%RawData(irow,:)%x
+        t%RawData(irow,:) = t%RawData(irow,:)%x
 #endif
     end do
     close(100)

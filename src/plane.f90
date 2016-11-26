@@ -822,7 +822,7 @@ subroutine plane_solve_jacobian(t)
     type(section_t),pointer :: si
     integer :: i,j,iter
     real :: w(3),vn,va,vi(3),vec(3),error,CLa,dGamma(t%nSize)
-    110 FORMAT (1X, I10, 4ES25.16, 3I10)
+    110 FORMAT (1X, I10, 100ES25.16)
 
     if(t%verbose.eq.1) write(*,*) 'Running the Jacobian solver.'
     if(t%verbose.eq.1) write(*,*) '---------------- Solver Settings ----------------'
