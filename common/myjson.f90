@@ -19,7 +19,7 @@ module myjson_m
         module procedure :: myjson_value_get_dual, myjson_file_get_dual
 #endif
         module procedure :: myjson_value_get_integer, myjson_file_get_integer
-        module procedure :: myjson_file_get_string
+        module procedure :: myjson_value_get_string, myjson_file_get_string
     end interface myjson_get
 
 #ifdef dnad
@@ -118,6 +118,28 @@ subroutine myjson_value_get_integer(json, name, value, default_value)
     end if
 
 end subroutine myjson_value_get_integer
+
+!-----------------------------------------------------------------------------------------------------------
+subroutine myjson_value_get_string(json, name, value, default_value)
+    implicit none
+    type(json_value), intent(in), pointer :: json
+    character(len=*), intent(in) :: name
+    character(:), allocatable, intent(out) :: value
+    character(len=*), intent(in), optional :: default_value
+
+    call json_get(json, name, value, json_found)
+    if((.not.json_found) .or. json_failed()) then
+        if (present(default_value)) then
+            write(*,*) trim(name), ' set to ', default_value
+            value = default_value
+            call json_clear_exceptions()
+        else
+            write(*,*) 'Error: Unable to read required value: ', name
+            STOP
+        end if
+    end if
+
+end subroutine myjson_value_get_string
 
 !-----------------------------------------------------------------------------------------------------------
 subroutine myjson_file_get_real(json, name, value, default_value)

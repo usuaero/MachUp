@@ -12,29 +12,21 @@ contains
 subroutine sf_distributions(t,json_command)
     type(plane_t) :: t
     type(json_value),intent(in),pointer :: json_command
-    character(len=:),allocatable :: cval
+    character(:), allocatable :: cval
     character(100) :: filename,output_type
     integer :: iwing,isec,ierror
     type(section_t),pointer :: si
     120 Format(A15, 100ES25.13)
 
     !Get filename if specified
-    call json_get(json_command,'filename', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
-        call json_clear_exceptions()
-        filename = trim(adjustl(t%master_filename))//'_distributions'
-    else
-        filename = trim(cval)
-    end if
+    filename = trim(adjustl(t%master_filename))//'_distributions'
+    call myjson_get(json_command, 'filename', cval, filename)
+    filename = trim(adjustl(cval))
 
     !Get file type
-    call json_get(json_command,'output', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No output specified
-        call json_clear_exceptions()
-        output_type = 'text'
-    else
-        output_type = trim(cval)
-    end if
+    output_type = 'text'
+    call myjson_get(json_command, 'output', cval, output_type);
+    output_type = trim(adjustl(cval))
 
     if(trim(adjustl(output_type)).eq.'json') then
         filename = trim(adjustl(filename))//'.json'
@@ -292,13 +284,9 @@ subroutine sf_start_json_file(t,json_command)
     character(100) :: filename
 
     !Get filename if specified
-    call json_get(json_command,'filename', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
-        call json_clear_exceptions()
-        filename = trim(adjustl(t%master_filename))//'_derivatives.json'
-    else
-        filename = trim(cval)
-    end if
+    filename = trim(adjustl(t%master_filename))//'_derivatives.json'
+    call myjson_get(json_command, 'filename', cval, filename);
+    filename = trim(adjustl(cval))
 
     call json_value_create(t%p_json)           ! create the value and associate the pointer
     call to_object(t%p_json,trim(filename))    ! add the file name as the name of the overall structure
@@ -422,13 +410,9 @@ subroutine sf_aerocenter(t,json_command)
     t%CG(:) = CG(:)
 
     !Get filename if specified
-    call json_get(json_command,'filename', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
-        call json_clear_exceptions()
-        filename = trim(adjustl(t%master_filename))//'_aerocenter.json'
-    else
-        filename = trim(cval)
-    end if
+    filename = trim(adjustl(t%master_filename))//'_aerocenter.json'
+    call myjson_get(json_command, 'filename', cval, filename)
+    filename = trim(adjustl(cval))
 
     call json_value_create(p_root)           ! create the value and associate the pointer
     call to_object(p_root,trim(filename))    ! add the file name as the name of the overall structure
@@ -499,13 +483,9 @@ subroutine sf_stallonset(t,json_command)
     write(*,*)
 
     !Get filename if specified
-    call json_get(json_command,'filename', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
-        call json_clear_exceptions()
-        filename = trim(adjustl(t%master_filename))//'_stallonset.json'
-    else
-        filename = trim(cval)
-    end if
+    filename = trim(adjustl(t%master_filename))//'_stallonset.json'
+    call myjson_get(json_command, 'filename', cval, filename)
+    filename = trim(adjustl(cval))
 
     call json_value_create(p_root)           ! create the value and associate the pointer
     call to_object(p_root,trim(filename))    ! add the file name as the name of the overall structure
@@ -542,27 +522,17 @@ subroutine sf_pitch_trim(t,json_command)
     integer :: iunit
 
     !Get filename if specified
-    call json_get(json_command,'filename', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
-        call json_clear_exceptions()
-        filename = trim(adjustl(t%master_filename))//'_pitchtrim.json'
-    else
-        filename = trim(cval)
-    end if
-
+    filename = trim(adjustl(t%master_filename))//'_pitchtrim.json'
+    call myjson_get(json_command, 'filename', cval, filename)
+    filename = trim(adjustl(cval))
 
     write(*,*)
     write(*,*) '---------- Trimming Aircraft in Pitch -----------'
 
     !Get control surface name
-    call json_get(json_command,'control', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No control surface specified
-        call json_clear_exceptions()
-        controlname = 'elevator'
-         write(*,*) 'Assuming control surface name = ',controlname
-    else
-        controlname = trim(cval)
-    end if
+    controlname = 'elevator'
+    call myjson_get(json_command, 'control', cval, controlname)
+    controlname = trim(adjustl(cval))
 
     found = 0
     do icontrol=1,t%ncontrols
@@ -749,14 +719,9 @@ subroutine sf_target_CL(t,json_command)
     integer :: iunit
 
     !Get filename if specified
-    call json_get(json_command,'filename', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
-        call json_clear_exceptions()
-        filename = trim(adjustl(t%master_filename))//'_targetCL.json'
-    else
-        filename = trim(cval)
-    end if
-
+    filename = trim(adjustl(t%master_filename))//'_targetCL.json'
+    call myjson_get(json_command, 'filename', cval, filename)
+    filename = trim(adjustl(cval))
 
     write(*,*)
     write(*,*) '---------- Finding alpha to target CL -----------'
@@ -906,13 +871,9 @@ subroutine sf_report(t,json_command)
     integer :: ios,i,nvars,iunit,save_file
 
     !Get filename if specified
-    call json_get(json_command,'filename', cval,json_found);
-    if(json_failed() .or. (trim(cval).eq.'')) then !No filename specified
-        call json_clear_exceptions()
-        filename = trim(adjustl(t%master_filename))//'_report.json'
-    else
-        filename = trim(cval)
-    end if
+    filename = trim(adjustl(t%master_filename))//'_report.json'
+    call myjson_get(json_command, 'filename', cval, filename)
+    filename = trim(adjustl(cval))
 
     call json_value_create(p_root)           ! create the value and associate the pointer
     call to_object(p_root,trim(filename))    ! add the file name as the name of the overall structure
@@ -923,8 +884,9 @@ subroutine sf_report(t,json_command)
         call json_value_get(json_command,i,c_var)
         if(trim(c_var%name).eq.'filename') cycle
         if(trim(c_var%name).eq.'run') cycle
-        call json_get(json_command,trim(c_var%name)//'.name', cval,json_found); call json_check(); var_name = trim(cval)
-        call json_get(json_command,trim(c_var%name)//'.file', cval,json_found); call json_check(); var_file = trim(cval)
+        
+        call myjson_get(json_command,trim(c_var%name)//'.name', cval); var_name = trim(cval)
+        call myjson_get(json_command,trim(c_var%name)//'.file', cval); var_file = trim(cval)
         call myjson_get(json_command,trim(c_var%name)//'.save', save_file, 0);
 
         call f_json%load_file(filename = var_file);       call json_check()
