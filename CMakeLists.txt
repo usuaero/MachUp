@@ -1,5 +1,6 @@
 project(MachUp Fortran)
 cmake_minimum_required(VERSION 3.5)
+enable_language (Fortran)
 
 # command-line options
 option(LTO "Turn on for Link-Time Optimization (default:OFF)")
