@@ -90,4 +90,4 @@ you first download and install Git. If you are unsure, you can check by typing
 Contact ????@usu.edu with any questions.
 
 ##License
-This project is licensed under the ??? license. See LICENSE file for more information. 
+This project is licensed under the MIT license - see the LICENSE file for more information. 
