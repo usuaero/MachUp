@@ -1,0 +1,224 @@
+{
+"airfoil_DB": "./AirfoilDatabase",
+"run": {
+    "stl" : "",
+    "forces" : ""
+},
+"solver":{
+	"type" : "linear",
+	"convergence" : 1.0e-10,
+	"relaxation": 0.9
+},
+"plane": {
+	"name": "myairplane",
+	"CGx": -0.25,
+	"CGy": 0.0,
+	"CGz": 0.0
+},
+"reference": {
+	"area": 8.0,
+	"longitudinal_length": 1.0,
+	"lateral_length": 8.0
+},
+"condition": {
+	"alpha": 5.0,
+	"beta": 3.0,
+    "ground": 0.0
+},
+"controls" : {
+    "aileron" : {
+        "is_symmetric" : 0,
+        "deflection" : -4.0
+    },
+    "elevator" : {
+        "is_symmetric" : 1,
+        "deflection" : 2.0
+    },
+    "rudder" : {
+        "is_symmetric" : 1,
+        "deflection" : -2.0
+    }
+},
+"wings": {
+	"wing_1" : {
+		"ID": 1,
+		"side": "both",
+		"connect": {
+			"ID": 0,
+			"location": "root",
+			"dx" : 0.0,
+			"dy" : 0.0,
+			"dz" : 0.0,
+            "yoffset" : 0.0
+		},
+		"span": 4.0,
+		"sweep": 0.0,
+		"dihedral": 5.0,
+		"mounting_angle": 3.0,
+		"washout": 0.0,
+		"root_chord": 1.0,
+		"tip_chord":  1.0,
+        "airfoils" : {
+            "NACA_2410"	:	{	
+            "properties"	:	{	
+            "type"	:	"linear",	
+            "alpha_L0"	:	-0.0368	,
+            "CL_alpha"	:	6.1976	,
+            "Cm_L0"	:	-0.0525	,
+            "Cm_alpha"	:	0.0326	,
+            "CD0"	:	0.00569	,
+            "CD0_L"	:	-0.00450	,
+            "CD0_L2"	:	0.01040	,
+            "CL_max"	:	1.4	,
+            "Comments"	:	"All angles in radians and slopes in 1/radians"
+            }			
+            },			
+            "NACA_2410"	:	{	
+            "properties"	:	{	
+            "type"	:	"linear",	
+            "alpha_L0"	:	-0.0368	,
+            "CL_alpha"	:	6.1976	,
+            "Cm_L0"	:	-0.0525	,
+            "Cm_alpha"	:	0.0326	,
+            "CD0"	:	0.00569	,
+            "CD0_L"	:	-0.00450	,
+            "CD0_L2"	:	0.01040	,
+            "CL_max"	:	1.4	,
+            "Comments"	:	"All angles in radians and slopes in 1/radians"
+            }			
+            }			
+        },
+		"grid": 5,
+        "control" : {
+            "span_root" : 0.7,
+            "span_tip" : 0.9,
+            "chord_root" : 0.25,
+            "chord_tip" : 0.25,
+            "is_sealed" : 1,
+            "mix" : {
+                "aileron" : 1.0
+            }
+        }
+	},
+	"horizontal_stab" : {
+		"ID": 2,
+		"side": "both",
+		"connect": {
+			"ID": 0,
+			"location": "root",
+			"dx" : -4.0,
+			"dy" : 0.0,
+			"dz" : 0.0,
+            "yoffset" : 0.0
+		},
+		"span": 1.0,
+		"sweep": 0.0,
+		"dihedral": 0.0,
+		"mounting_angle": 0.0,
+		"washout": 0.0,
+		"root_chord": 0.25,
+		"tip_chord":  0.25,
+        "airfoils" : {
+            "NACA_0010"	:	{	
+            "properties"	:	{	
+            "type"	:	"linear"	,
+            "alpha_L0"	:	0.0000	,
+            "CL_alpha"	:	6.4336	,
+            "Cm_L0"	:	0.0000	,
+            "Cm_alpha"	:	0.0000	,
+            "CD0"	:	0.00513	,
+            "CD0_L"	:	0.00000	,
+            "CD0_L2"	:	0.00984	,
+            "CL_max"	:	1.4	,
+            "Comments"	:	"All angles in radians and slopes in 1/radians"	 
+            }			
+            },			
+            "NACA_0010"	:	{	
+            "properties"	:	{	
+            "type"	:	"linear"	,
+            "alpha_L0"	:	0.0000	,
+            "CL_alpha"	:	6.4336	,
+            "Cm_L0"	:	0.0000	,
+            "Cm_alpha"	:	0.0000	,
+            "CD0"	:	0.00513	,
+            "CD0_L"	:	0.00000	,
+            "CD0_L2"	:	0.00984	,
+            "CL_max"	:	1.4	,
+            "Comments"	:	"All angles in radians and slopes in 1/radians"	 
+            }			
+            }			
+        },
+		"grid": 5,
+        "control" : {
+            "span_root" : 0.0,
+            "span_tip" : 1.0,
+            "chord_root" : 0.25,
+            "chord_tip" : 0.25,
+            "is_sealed" : 1,
+            "mix" : {
+                "elevator" : 1.0
+            }
+        }
+	},
+	"vertical_stab" : {
+		"ID": 3,
+		"side": "right",
+		"connect": {
+			"ID": 0,
+			"location": "root",
+			"dx" : -4.0,
+			"dy" : 0.0,
+			"dz" : 0.0,
+            "yoffset" : 0.0
+		},
+		"span": 1.0,
+		"sweep": 0.0,
+		"dihedral": 90.0,
+		"mounting_angle": 0.0,
+		"washout": 0.0,
+		"root_chord": 0.25,
+		"tip_chord":  0.25,
+        "airfoils" : {
+            "NACA_0010"	:	{	
+            "properties"	:	{	
+            "type"	:	"linear"	,
+            "alpha_L0"	:	0.0000	,
+            "CL_alpha"	:	6.4336	,
+            "Cm_L0"	:	0.0000	,
+            "Cm_alpha"	:	0.0000	,
+            "CD0"	:	0.00513	,
+            "CD0_L"	:	0.00000	,
+            "CD0_L2"	:	0.00984	,
+            "CL_max"	:	1.4	,
+            "Comments"	:	"All angles in radians and slopes in 1/radians"	 
+            }			
+            },			
+            "NACA_0010"	:	{	
+            "properties"	:	{	
+            "type"	:	"linear"	,
+            "alpha_L0"	:	0.0000	,
+            "CL_alpha"	:	6.4336	,
+            "Cm_L0"	:	0.0000	,
+            "Cm_alpha"	:	0.0000	,
+            "CD0"	:	0.00513	,
+            "CD0_L"	:	0.00000	,
+            "CD0_L2"	:	0.00984	,
+            "CL_max"	:	1.4	,
+            "Comments"	:	"All angles in radians and slopes in 1/radians"	 
+            }			
+            }			
+        },
+		"grid": 5,
+        "control" : {
+            "span_root" : 0.0,
+            "span_tip" : 1.0,
+            "chord_root" : 0.25,
+            "chord_tip" : 0.25,
+            "is_sealed" : 1,
+            "mix" : {
+                "rudder" : 1.0
+            }
+        }
+	}
+}
+}
