@@ -5,5 +5,8 @@ debug/
 build/
 !*.f90
 !*.F90
+!*.py
+!*.json
 !.gitignore
+!.pylintrc
 !CMakeLists.txt

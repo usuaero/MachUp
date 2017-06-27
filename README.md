@@ -1,22 +1,34 @@
 # MachUp
+NOTE: This readme represents the vision for the final product and as
+such, does not necessarily represent what is currently implemented. For
+documentation on what is currently implemented, see the docstrings.
 
-MuPy is a Python (2.? - 3.?) library for the design and analysis of 
+
+Machup is a Python (2.? - 3.?) library for the design and analysis of 
 fixed-wing aircraft. This includes things like calculating lift, 
 drag, pitching moments, and stability derivatives. 
 
-At the heart of MuPy is a modern numerical lifting-line algorithm that
+At the heart of machup is a modern numerical lifting-line algorithm that
 rapidly predicts flow over multiple lifting surfaces and can 
 incorperate viscous effects. For a detailed explanation of the theory 
-refer to...
+refer to the following sources.
 
-The following code demonstrates how MuPy might be used in a 
+W. F. Phillips and D. O. Snyder. "Modern Adaptation of Prandtl's
+Classic Lifting-Line Theory", Journal of Aircraft, Vol. 37, No. 4
+(2000), pp. 662-670.
+
+W. F. Phillips, "Flow over Multiple Lifting Surfaces," Mechanics of
+Flight, 2nd ed., Wiley, New Jersey, 2010, pp. 94 -107.
+
+
+The following code demonstrates how machup might be used in a 
 Python script:
 
 ```python
-import mupy
+import machup
 
 #Generate a new airplane object
-new_plane = mupy.Plane(inputs...)
+new_plane = machup.Plane(inputs...)
 #Add main wing
 new_plane.addWing(inputs...)
 #Add vertical tail
@@ -25,7 +37,7 @@ new_plane.addWing(inputs...)
 new_plane.addWing(inputs...)
 
 #Generate lifting line model for airplane
-myModel = mupy.createLLModel(new_plane)
+myModel = machup.createLLModel(new_plane)
 
 #Generate solution and store in results
 results = myModel.solve()
@@ -51,12 +63,12 @@ or by using the built in Python help() function to consult the docstrings.
 
 ## Installation
 
-MuPy packages are available on PyPi and Conda and can be installed 
+Once finished, machup packages will be available on PyPi and Conda and can be installed 
 using the following commands respectively. 
 
-'pip install MuPy'
+'pip install machup'
 
-'conda install MuPy'
+'conda install machup'
 
 ### Prerequisites
 
@@ -86,8 +98,13 @@ you first download and install Git. If you are unsure, you can check by typing
 1. From the command prompt navigate to the directory where MachUp will be installed
 2. `git clone https://github.com/usuaero/MachUp`
 
+## Testing
+Unit tests are implemented using the pytest module and are run using the following command.
+
+'python3 -m pytest test/'
+
 ##Support
-Contact ????@usu.edu with any questions.
+Contact doug.hunsaker@usu.edu with any questions.
 
 ##License
 This project is licensed under the MIT license - see the LICENSE file for more information. 
