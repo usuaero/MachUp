@@ -16,12 +16,12 @@
 	"CGz": 0.0
 },
 "reference": {
-	"area": 8.0,
-	"longitudinal_length": 1.0,
-	"lateral_length": 8.0
+	"area": 20.0,
+	"longitudinal_length": 2.0,
+	"lateral_length": 10.0
 },
 "condition": {
-	"alpha": 0.0,
+	"alpha": 4.0,
 	"beta": 0.0,
     "ground": 0.0
 },
@@ -47,35 +47,35 @@
 			"dz" : 0.0,
             "yoffset" : 0.0
 		},
-		"span": 4.0,
-		"sweep": 0.0,
+		"span": 5.0,
+		"sweep": 45.0,
 		"dihedral": 0.0,
 		"mounting_angle": 0.0,
-		"washout": 10.0,
-		"root_chord": 1.0,
-		"tip_chord":  1.0,
+		"washout": 0.0,
+		"root_chord": 2.0,
+		"tip_chord":  2.0,
         "airfoils" : {
-            "NACA_4410"	:	{
+            "NACA_0010"	:	{	
             "properties"	:	{	
             "type"	:	"linear",	
-            "alpha_L0"	:	-0.0746	,
-            "CL_alpha"	:	6.2881	,
-            "Cm_L0"	:	-0.1045	,
-            "Cm_alpha"	:	0.0140	,
-            "CD0"	:	0.00839	,
-            "CD0_L"	:	-0.01036	,
-            "CD0_L2"	:	0.00969	,
+            "alpha_L0"	:	0.0	,
+            "CL_alpha"	:	6.2831853071796	,
+            "Cm_L0"	:	0.0	,
+            "Cm_alpha"	:	0.0	,
+            "CD0"	:	0.00569	,
+            "CD0_L"	:	-0.00450	,
+            "CD0_L2"	:	0.01040	,
             "CL_max"	:	1.4	,
             "Comments"	:	"All angles in radians and slopes in 1/radians"
             }			
             },			
-            "NACA_2410"	:	{	
+            "NACA_0010"	:	{	
             "properties"	:	{	
             "type"	:	"linear",	
-            "alpha_L0"	:	-0.0368	,
-            "CL_alpha"	:	6.1976	,
-            "Cm_L0"	:	-0.0525	,
-            "Cm_alpha"	:	0.0326	,
+            "alpha_L0"	:	0.0	,
+            "CL_alpha"	:	6.2831853071796	,
+            "Cm_L0"	:	0.0	,
+            "Cm_alpha"	:	0.0	,
             "CD0"	:	0.00569	,
             "CD0_L"	:	-0.00450	,
             "CD0_L2"	:	0.01040	,

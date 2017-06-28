@@ -475,6 +475,17 @@ class WingSegment:
         """
         return self._dimensions["dihedral"]
 
+    def get_sweep(self):
+        """Get the dihedral of the wing segment.
+
+        Returns
+        -------
+        float
+            The dihedral of the segment (degrees).
+
+        """
+        return self._dimensions["sweep"]
+
     def get_side(self):
         """Get the side of the airplane that the wing segment is on.
 

@@ -282,7 +282,7 @@ class LLModel:
         # alpha_loc = np.arctan(np.sum(v_loc*u_n, axis=1) /
         #                       np.sum(v_loc*u_a, axis=1))
         # self._b = (v_loc_mag*v_loc_mag*delta_s*cl_a *
-        #               (alpha_loc + (delta_flap-alpha_l0)))
+        #            (alpha_loc + (delta_flap-alpha_l0)))
 
     def _effective_flap_deflection(self):
         # computes effective flap deflection (epsilon_f*delta) as in
@@ -344,6 +344,7 @@ class LLModel:
 
         v_i_mag = np.linalg.norm(v_i, axis=1)
         # use the following v_i_mag to compare with fortran version
+        # v_loc = self._aero_data["v_loc"]
         # v_i_mag = np.linalg.norm(v_loc, axis=1)
         dyn_pressure = -0.5*rho*v_i_mag[:]*v_i_mag[:]
 
@@ -467,13 +468,13 @@ class LLGrid:
 
     def _calc_segment_points(self, seg, spacing):
         # calculates the coordinates for a spacing of points along a segment
-        span = seg.get_span()
         left_pos = seg.get_side_position("left")
         right_pos = seg.get_side_position("right")
+        length = np.linalg.norm(right_pos - left_pos)
         unit_s = self._calc_unit_s(left_pos, right_pos)
-        x_pos = span*spacing*unit_s[0] + left_pos[0]
-        y_pos = span*spacing*unit_s[1] + left_pos[1]
-        z_pos = span*spacing*unit_s[2] + left_pos[2]
+        x_pos = length*spacing*unit_s[0] + left_pos[0]
+        y_pos = length*spacing*unit_s[1] + left_pos[1]
+        z_pos = length*spacing*unit_s[2] + left_pos[2]
 
         pos = np.rot90(np.array([z_pos, y_pos, x_pos]), axes=(1, 0))
 
@@ -501,10 +502,11 @@ class LLGrid:
 
         for seg in self._wing_segments:
             num_sections = seg.get_num_sections()
+            sweep = seg.get_sweep()*np.pi/180.
             chord = seg.get_chord()
             index = range(count, count+num_sections)
             for i in index:
-                areas[i] = (np.linalg.norm(corner_2[i]-corner_1[i]))*chord
+                areas[i] = np.cos(sweep)*(np.linalg.norm(corner_2[i]-corner_1[i]))*chord
                 chord_1[i] = chord
                 chord_2[i] = chord
                 count += 1

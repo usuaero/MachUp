@@ -84,7 +84,7 @@
             }			
             }			
         },
-		"grid": 100,
+		"grid": 50,
         "control" : {
             "span_root" : 0.7,
             "span_tip" : 0.9,

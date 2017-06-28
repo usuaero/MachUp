@@ -1,4 +1,4 @@
-"""Tests for the numerical lifting line model"""
+"""Tests for the numerical lifting line model."""
 # pylint: disable=redefined-outer-name
 
 import pytest
@@ -15,7 +15,7 @@ COMPARING_WITH_MACHUP = False
 
 @pytest.fixture
 def single_wing_model():
-    """Returns an LLModel from the single_wing.json example"""
+    """Get a LLModel from the single_wing.json example."""
     filename = PLANE_DIR+"single_wing.json"
     plane = geom.Airplane(inputfile=filename)
     model = mod.LLModel(plane)
@@ -24,7 +24,7 @@ def single_wing_model():
 
 @pytest.fixture
 def single_wing_grid():
-    """Returns a LLGrid for the single_wing.json example"""
+    """Get a LLGrid for the single_wing.json example."""
     filename = PLANE_DIR+"single_wing.json"
     plane = geom.Airplane(inputfile=filename)
     grid = mod.LLGrid(plane)
@@ -33,7 +33,7 @@ def single_wing_grid():
 
 @pytest.fixture
 def small_wing_model():
-    """Returns a LLModel from the straight_wing_5sect.json example"""
+    """Get a LLModel from the straight_wing_5sect.json example."""
     filename = PLANE_DIR+"straight_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
     model = mod.LLModel(plane)
@@ -42,7 +42,7 @@ def small_wing_model():
 
 @pytest.fixture
 def small_wing_grid():
-    """Returns a LLGrid for the straight_wing_5sect.json example"""
+    """Get a LLGrid for the straight_wing_5sect.json example."""
     filename = PLANE_DIR+"straight_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
     grid = mod.LLGrid(plane)
@@ -51,7 +51,7 @@ def small_wing_grid():
 
 @pytest.fixture
 def small_plane_model():
-    """Returns a LLModel from the straight_simple_plane.json example"""
+    """Get a LLModel from the straight_simple_plane.json example."""
     filename = PLANE_DIR+"straight_simple_plane.json"
     plane = geom.Airplane(inputfile=filename)
     model = mod.LLModel(plane)
@@ -60,7 +60,7 @@ def small_plane_model():
 
 @pytest.fixture
 def vertical_wing_model():
-    """Returns a LLModel from the vertical_wing_5sect.json example"""
+    """Get a LLModel from the vertical_wing_5sect.json example."""
     filename = PLANE_DIR+"vertical_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
     model = mod.LLModel(plane)
@@ -69,7 +69,7 @@ def vertical_wing_model():
 
 @pytest.fixture
 def vertical_wing_grid():
-    """Returns a LLGrid for the vertical_wing_5sect.json example"""
+    """Get a LLGrid for the vertical_wing_5sect.json example."""
     filename = PLANE_DIR+"vertical_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
     grid = mod.LLGrid(plane)
@@ -78,11 +78,20 @@ def vertical_wing_grid():
 
 @pytest.fixture
 def swept_wing_model():
-    """Returns a LLModel from the swept_wing.json example"""
+    """Get a LLModel from the swept_wing.json example."""
     filename = PLANE_DIR+"swept_wing.json"
     plane = geom.Airplane(inputfile=filename)
     model = mod.LLModel(plane)
     return model
+
+
+@pytest.fixture
+def swept_wing_grid():
+    """Get a LLGrid from the swept_wing_5sect.json example."""
+    filename = PLANE_DIR+"swept_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    grid = mod.LLGrid(plane)
+    return grid
 
 
 def test_linear_solver_forces(small_wing_model):
@@ -460,40 +469,52 @@ def test_linear_solver_v_stab(vertical_wing_model):
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
 
 
-# def test_linear_solver_sweep(swept_wing_model):
-#     aero_state = {
-#         "V_mag": 10.,
-#         "alpha": 4.,
-#         "beta": 0.,
-#         "rho": 1.
-#     }
-#     results = swept_wing_model.solve(stype="linear",
-#                                      aero_state=aero_state)
-#
-#     test = np.array([6.90284991426664E-003,
-#                      -1.99493199737333E-017,
-#                      -1.96702770434235E-001,
-#                      5.55111512312578E-018,
-#                      -2.53143149215631E-001,
-#                      1.80411241501588E-017])
-#
-#     test[:] *= 0.5*100.*20.
-#     test[3] *= 20.
-#     test[5] *= 20.
-#     if not COMPARING_WITH_MACHUP:
-#         test[0] = 14.666920954528852
-#         test[1] = 0.0000000000000000
-#         test[2] = -236.371747722803264
-#         test[3] = 7.460698725481052e-14
-#         test[4] = 7.477164959091317e+01
-#         test[5] = -8.326672684688674e-17
-#
-#     assert np.allclose(results["FX"], test[0], rtol=0., atol=1e-12) is True
-#     assert np.allclose(results["FY"], test[1], rtol=0., atol=1e-12) is True
-#     assert np.allclose(results["FZ"], test[2], rtol=0., atol=1e-12) is True
-#     assert np.allclose(results["Cl"], test[3], rtol=0., atol=1e-12) is True
-#     assert np.allclose(results["Cm"], test[4], rtol=0., atol=1e-12) is True
-#     assert np.allclose(results["Cn"], test[5], rtol=0., atol=1e-12) is True
+def test_linear_solver_sweep(swept_wing_model):
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 4.,
+        "beta": 0.,
+        "rho": 1.
+    }
+    results = swept_wing_model.solve(stype="linear",
+                                     aero_state=aero_state)
+
+    test = np.array([7.87330444526774E-003,
+                     2.60208521396521E-018,
+                     -2.11677952845681E-001,
+                     -2.22044604925031E-017,
+                     -2.67548444023076E-001,
+                     -4.51028103753970E-018])
+
+    # test[:] *= 0.5*100.*20.
+    # test[3] *= 10.
+    # test[4] *= 2.
+    # test[5] *= 10.
+    if not COMPARING_WITH_MACHUP:
+        test[0] = 0.0078724828127284541
+        test[1] = 0.0000000000000000
+        test[2] = -0.21150533232311516
+        test[3] = 0.0000000000000000
+        test[4] = -0.2673303653732535
+        test[5] = 0.0000000000000000
+
+    r_x = results["FX"]/(0.5*100.*20.)
+    r_y = results["FY"]/(0.5*100.*20.)
+    r_z = results["FZ"]/(0.5*100.*20.)
+    r_l = results["l"]/(0.5*100.*20.*10.)
+    r_m = results["m"]/(0.5*100.*20.*2.)
+    r_n = results["n"]/(0.5*100.*20.*10.)
+    # alpha = 4.*np.pi/180.
+    # rL = r_x*np.sin(alpha) - r_z*np.cos(alpha)
+    # rD = -r_x*np.cos(alpha) - r_z*np.sin(alpha)
+    # print(rL, rD)
+
+    assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_z, test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_l, test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_m, test[4], rtol=0., atol=1e-11) is True
+    assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
 
 
 def test_get_grid_position(single_wing_grid):
@@ -525,6 +546,41 @@ def test_get_grid_position(single_wing_grid):
     assert np.allclose(r_2_pos, s_2, rtol=0., atol=1e-15) is True
 
 
+def test_get_grid_position_swept(swept_wing_grid):
+    # get vortex positions from grid
+    r_pos = swept_wing_grid.get_control_point_pos()
+    r_1_pos, r_2_pos = swept_wing_grid.get_corner_point_pos()
+    # set up what vortex positions should be for the single wing case
+    num_sections = 5
+    length = 5./np.cos(np.pi/4.)
+    index = np.arange(num_sections+1)
+    comp_cp = (length/2.)*(1. - np.cos((np.pi/num_sections)*(index-0.5)))[1:]
+    comp_1 = (length/2.)*(1. - np.cos(np.pi*index/num_sections))[:-1]
+    comp_2 = (length/2.)*(1. - np.cos(np.pi*index/num_sections))[1:]
+    comp_cp *= np.sqrt(2.)/2.
+    comp_1 *= np.sqrt(2.)/2.
+    comp_2 *= np.sqrt(2.)/2.
+    # comp = np.array([0.12235870926211616, 1.0305368692688170, 2.5000000000000000,
+    #                  3.9694631307311816, 4.8776412907378832])
+    r_cp = np.zeros((10, 3))
+    r_1 = np.zeros((10, 3))
+    r_2 = np.zeros((10, 3))
+    r_cp[:, 0] = np.concatenate((-1.*np.flipud(comp_cp), -1.*comp_cp))
+    r_cp[:, 1] = np.concatenate((-np.flipud(comp_cp), comp_cp))
+    r_1[:, 0] = np.concatenate((-1.*np.flipud(comp_2), -1.*comp_1))
+    r_1[:, 1] = np.concatenate((-np.flipud(comp_2), comp_1))
+    r_2[:, 0] = np.concatenate((-1.*np.flipud(comp_1), -1.*comp_2))
+    r_2[:, 1] = np.concatenate((-np.flipud(comp_1), comp_2))
+
+    assert len(r_cp) == len(r_pos)
+    assert len(r_1) == len(r_1_pos)
+    assert len(r_2) == len(r_2_pos)
+
+    assert np.allclose(r_pos, r_cp, rtol=0., atol=1e-15) is True
+    assert np.allclose(r_1_pos, r_1, rtol=0., atol=1e-15) is True
+    assert np.allclose(r_2_pos, r_2, rtol=0., atol=1e-15) is True
+
+
 # def test_grid_linear_interp(small_wing_grid):
 #     lift_slopes = small_wing_grid.get_lift_slopes()
 #
@@ -550,6 +606,18 @@ def test_grid_get_area(small_wing_grid):
     test_vals = np.array([0.381966011250105, 1., 1.236067977499790,
                           1., 0.381966011250105, 0.381966011250105,
                           1., 1.236067977499790, 1., 0.381966011250105])
+
+    assert np.allclose(test_vals, area_vals, rtol=0., atol=1e-13) is True
+
+
+def test_grid_get_swept_area(swept_wing_grid):
+    area_vals = swept_wing_grid.get_section_areas()
+
+    test_vals = np.array([0.954915028125264, 2.500000000000000,
+                          3.090169943749470, 2.500000000000000,
+                          0.954915028125263, 0.954915028125263,
+                          2.500000000000000, 3.090169943749470,
+                          2.500000000000000, 0.954915028125264])
 
     assert np.allclose(test_vals, area_vals, rtol=0., atol=1e-13) is True
 
