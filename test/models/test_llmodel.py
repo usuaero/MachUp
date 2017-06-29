@@ -247,7 +247,9 @@ def test_linear_solver_alpha(small_wing_model):
                      -5.91458366575759E-001,
                      1.38777878078145E-017,
                      1.87196576972895E-001,
-                     1.73472347597681E-018])
+                     1.73472347597681E-018,
+                     5.92405147019768E-001,
+                     1.50018799815696E-002])
 
     test[:] *= 0.5*100.*8.
     test[3] *= 8.
@@ -259,6 +261,8 @@ def test_linear_solver_alpha(small_wing_model):
         test[3] = 7.460698725481052e-14
         test[4] = 7.477164959091317e+01
         test[5] = -8.326672684688674e-17
+        test[6] = 236.75058824974937
+        test[7] = 5.9900463451106276
 
     assert np.allclose(results["FX"], test[0], rtol=0., atol=1e-12) is True
     assert np.allclose(results["FY"], test[1], rtol=0., atol=1e-12) is True
@@ -266,6 +270,8 @@ def test_linear_solver_alpha(small_wing_model):
     assert np.allclose(results["l"], test[3], rtol=0., atol=1e-12) is True
     assert np.allclose(results["m"], test[4], rtol=0., atol=1e-12) is True
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["FL"], test[6], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["FD"], test[7], rtol=0., atol=1e-12) is True
 
 
 def test_linear_solver_alpha_2(small_wing_model):
@@ -331,7 +337,9 @@ def test_linear_solver_beta(small_wing_model):
                      -1.75143481969000E-001,
                      1.08411494073456E-003,
                      1.84771495138129E-002,
-                     1.01266583647442E-005])
+                     1.01266583647442E-005,
+                     1.75143537321791E-001,
+                     1.324834310131E-003])
 
     test[:] *= 0.5*100.*8.
     test[3] *= 8.
@@ -350,6 +358,8 @@ def test_linear_solver_beta(small_wing_model):
     assert np.allclose(results["l"], test[3], rtol=0., atol=1e-12) is True
     assert np.allclose(results["m"], test[4], rtol=0., atol=1e-12) is True
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["FL"], test[6], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["FD"], test[7], rtol=0., atol=1e-12) is True
 
 
 def test_linear_solver_plane(small_plane_model):
@@ -513,10 +523,9 @@ def test_linear_solver_sweep(swept_wing_model):
     r_l = results["l"]/(0.5*100.*20.*10.)
     r_m = results["m"]/(0.5*100.*20.*2.)
     r_n = results["n"]/(0.5*100.*20.*10.)
-    # alpha = 4.*np.pi/180.
-    # rL = r_x*np.sin(alpha) - r_z*np.cos(alpha)
-    # rD = -r_x*np.cos(alpha) - r_z*np.sin(alpha)
-    # print(rL, rD)
+    # rl = results["FL"]/(0.5*100.*20.)
+    # rd = results["FD"]/(0.5*100.*20.)
+    # print(rl, rd)
 
     assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
     assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True

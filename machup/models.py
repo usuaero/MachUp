@@ -318,6 +318,7 @@ class LLModel:
         # Computes the aerodynamic force at each control point.
         rho = self._aero_data["rho"]
         gamma = self._gamma
+        u_inf = self._aero_data["u_inf"]
         r_1, r_2 = self._grid.get_corner_point_pos()
         delta_l = r_2 - r_1
         v_i = self._v_i
@@ -326,9 +327,14 @@ class LLModel:
         forces[:] = rho*gamma[:][:, None]*np.cross(v_i[:], delta_l[:])
         force_total = np.sum(forces, axis=0)
 
+        drag = np.dot(force_total, u_inf)
+        lift = np.linalg.norm(force_total-drag*u_inf)
+
         self._results["FX"] = force_total[0]
         self._results["FY"] = force_total[1]
         self._results["FZ"] = force_total[2]
+        self._results["FL"] = lift
+        self._results["FD"] = drag
 
     def _compute_moments(self):
         # Computes the aerodynamic moment at each control point.
