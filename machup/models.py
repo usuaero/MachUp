@@ -89,7 +89,7 @@ class LLModel:
         }
         self._control_data = {
             'delta_flap': np.zeros(self._num_vortices),
-            'deflection_efficiency': np.zeros(self._num_vortices)
+            'deflection_eff': np.zeros(self._num_vortices)
         }
         self._results = {
             "FX": 0.,
@@ -101,13 +101,13 @@ class LLModel:
             "m": 0.,
             "n": 0.
         }
-        self._vji = np.zeros((self._num_vortices, self._num_vortices, 3))
-        self._v_i = np.zeros((self._num_vortices, 3))
-        self._forces = np.zeros((self._num_vortices, 3))
-        self._moments = np.zeros((self._num_vortices, 3))
-        self._gamma = np.zeros(self._num_vortices)
-        self._a = np.zeros((self._num_vortices, self._num_vortices))
-        self._b = np.zeros(self._num_vortices)
+        self._vji = None #np.zeros((self._num_vortices, self._num_vortices, 3))
+        self._v_i = None #np.zeros((self._num_vortices, 3))
+        self._forces = None #np.zeros((self._num_vortices, 3))
+        self._moments = None #np.zeros((self._num_vortices, 3))
+        self._gamma = None #np.zeros(self._num_vortices)
+        self._a = None #np.zeros((self._num_vortices, self._num_vortices))
+        self._b = None #np.zeros(self._num_vortices)
 
     def _process_aero_state(self, state):
         # Takes state data from state and constructs necessary arrays
@@ -124,15 +124,14 @@ class LLModel:
             v_xyz[1] *= -c_a*s_b
             v_xyz[2] *= -s_a*c_b
             v_local[:] = v_xyz
-            u_inf[:] = (v_xyz/np.linalg.norm(v_xyz))[:]
+            u_inf[:] = (v_xyz/np.linalg.norm(v_xyz))
 
             self._aero_data["rho"] = state["rho"]
 
         else:
             # assume uniform flow in -x direction for now
             v_local[:, 0] = -10.
-            u_inf[:] = np.mean(v_local, axis=0)[:]
-            u_inf[:] = (u_inf/np.linalg.norm(u_inf))[:]
+            u_inf[0] = -1.
 
     def _process_control_state(self, state):
         # Takes state data from state and constructs necessary arrays
@@ -141,11 +140,10 @@ class LLModel:
             delta_e = state["elevator"]
             delta_r = state["rudder"]
             mixing_a, mixing_e, mixing_r = self._grid.get_control_mix()
-            delta_f = self._control_data["delta_flap"]
 
-            delta_f[:] = (delta_a*mixing_a[:] +
-                          delta_e*mixing_e[:] +
-                          delta_r*mixing_r[:])*np.pi/180.
+            self._control_data["delta_flap"] = (delta_a*mixing_a +
+                                                delta_e*mixing_e +
+                                                delta_r*mixing_r)*np.pi/180.
 
             self._compute_deflection_efficiency()
 
@@ -153,12 +151,13 @@ class LLModel:
         # Compute flap deflection efficiency using linear fit of
         # figure 1.7.5 in Phillips
         delta_f = self._control_data["delta_flap"]
-        fd_eff = self._control_data["deflection_efficiency"]
         slope = -8.71794871794872E-03
         intercept = 1.09589743589744
 
         df_abs = np.absolute(delta_f)*180/np.pi
-        fd_eff[:] = np.where(df_abs > 11., slope*df_abs+intercept, 1.)[:]
+        self._control_data["deflection_eff"] = np.where(df_abs > 11.,
+                                                        slope*df_abs+intercept,
+                                                        1.)
 
     # @profile
     def solve(self, stype, aero_state=None, control_state=None):
@@ -221,13 +220,12 @@ class LLModel:
         # calculations.
         # pylint: disable=too-many-locals, no-member
 
-        vji = self._vji
         r_cp = self._grid.get_control_point_pos()
         r_1, r_2 = self._grid.get_corner_point_pos()
         u_inf = self._aero_data["u_inf"]
 
-        rj1i = r_cp[:, None] - r_1[:]
-        rj2i = r_cp[:, None] - r_2[:]
+        rj1i = r_cp[:, None] - r_1
+        rj2i = r_cp[:, None] - r_2
         rj1i_mag = np.linalg.norm(rj1i, axis=2)
         rj2i_mag = np.linalg.norm(rj2i, axis=2)
         rj1irj2i_mag = np.multiply(rj1i_mag, rj2i_mag)
@@ -239,7 +237,7 @@ class LLModel:
         d_2 = rj1irj2i_mag*(rj1irj2i_mag + np.sum(rj1i*rj2i, axis=2))
         d_3 = rj1i_mag*(rj1i_mag - np.inner(u_inf, rj1i))
 
-        vji[:] = n_1/d_1[:, :, None] - n_3/d_3[:, :, None]
+        self._vji = n_1/d_1[:, :, None] - n_3/d_3[:, :, None]
 
         with np.errstate(divide='ignore', invalid='ignore'):
             # Diagonal elements of denominator of second term should
@@ -249,9 +247,9 @@ class LLModel:
             np.fill_diagonal(d_2, 0.)
             t_2 = np.true_divide(n_2, d_2[:, :, None])
             t_2[~ np.isfinite(t_2)] = 0.
-        vji += t_2
+        self._vji += t_2
 
-        vji *= 1./(4.*np.pi)
+        self._vji *= 1./(4.*np.pi)
 
     def _setup_linear_matrices(self):
         # Builds matrices for linear solution according to a dimensional
@@ -268,8 +266,8 @@ class LLModel:
         delta_l = r_2 - r_1
 
         v_loc_mag = np.linalg.norm(v_loc, axis=1)
-        vji_un = np.sum(u_n[:][:, None]*vji[:, :], axis=2)
-        self._a = (-v_loc_mag[:]*delta_s[:]*cl_a[:])[:, None]*vji_un[:]
+        vji_un = np.sum(u_n[:, None]*vji, axis=2)
+        self._a = (-v_loc_mag*delta_s*cl_a)[:, None]*vji_un
         np.fill_diagonal(self._a, self._a.diagonal() +
                          2.*np.linalg.norm(np.cross(v_loc, delta_l), axis=1))
 
@@ -288,7 +286,7 @@ class LLModel:
         # computes effective flap deflection (epsilon_f*delta) as in
         # eq 1.7.12 in Phillips text.
         eps = self._grid.get_flap_effectiveness()
-        def_eff = self._control_data["deflection_efficiency"]
+        def_eff = self._control_data["deflection_eff"]
         delta_c = self._control_data["delta_flap"]
 
         eff_deflection = eps*def_eff*delta_c
@@ -312,7 +310,7 @@ class LLModel:
         gamma = self._gamma
         v_loc = self._aero_data["v_loc"]
 
-        self._v_i = v_loc[:] + np.sum(gamma[:, None]*vji[:], axis=1)
+        self._v_i = v_loc + np.sum(gamma[:, None]*vji, axis=1)
 
     def _compute_forces(self):
         # Computes the aerodynamic force at each control point.
@@ -322,10 +320,9 @@ class LLModel:
         r_1, r_2 = self._grid.get_corner_point_pos()
         delta_l = r_2 - r_1
         v_i = self._v_i
-        forces = self._forces
 
-        forces[:] = rho*gamma[:][:, None]*np.cross(v_i[:], delta_l[:])
-        force_total = np.sum(forces, axis=0)
+        self._forces = rho*gamma[:, None]*np.cross(v_i, delta_l)
+        force_total = np.sum(self._forces, axis=0)
 
         drag = np.dot(force_total, u_inf)
         lift = np.linalg.norm(force_total-drag*u_inf)
@@ -338,7 +335,6 @@ class LLModel:
 
     def _compute_moments(self):
         # Computes the aerodynamic moment at each control point.
-        moments = self._moments
         rho = self._aero_data["rho"]
         r_cp = self._grid.get_control_point_pos()
         u_s = self._grid.get_unit_spanwise_vectors()
@@ -352,11 +348,11 @@ class LLModel:
         # use the following v_i_mag to compare with fortran version
         # v_loc = self._aero_data["v_loc"]
         # v_i_mag = np.linalg.norm(v_loc, axis=1)
-        dyn_pressure = -0.5*rho*v_i_mag[:]*v_i_mag[:]
+        dyn_pressure = -0.5*rho*v_i_mag*v_i_mag
 
-        moments[:] = (dyn_pressure[:]*c_m[:]*int_chord2[:])[:, None]*u_s[:]
-        moments += np.cross((r_cp - cg_location)[:], force[:])
-        moment_total = np.sum(moments, axis=0)
+        self._moments = (dyn_pressure*c_m*int_chord2)[:, None]*u_s
+        self._moments += np.cross((r_cp - cg_location), force)
+        moment_total = np.sum(self._moments, axis=0)
 
         self._results["l"] = moment_total[0]
         self._results["m"] = moment_total[1]
@@ -371,10 +367,10 @@ class LLModel:
         alpha_l0 = self._grid.get_zero_lift_alpha()
 
         # pylint: disable=no-member
-        alpha = np.arctan(np.sum(v_i[:]*u_n[:], axis=1) /
-                          np.sum(v_i[:]*u_a[:], axis=1))
+        alpha = np.arctan(np.sum(v_i*u_n, axis=1) /
+                          np.sum(v_i*u_a, axis=1))
 
-        c_m = cm_l0[:] + cm_a[:]*(alpha[:] - alpha_l0[:]) + delta_c[:]*cm_d[:]
+        c_m = cm_l0 + cm_a*(alpha - alpha_l0) + delta_c*cm_d
 
         return c_m
 
@@ -473,7 +469,7 @@ class LLGrid:
     def _cosine_spacing(num_sections, offset=0):
         # calculates the cosine spacing
         index = np.arange(num_sections+1)
-        spacing = .5*(1.-np.cos((np.pi/num_sections)*(index[:]-offset)))
+        spacing = .5*(1.-np.cos((np.pi/num_sections)*(index-offset)))
 
         return spacing
 
@@ -481,7 +477,7 @@ class LLGrid:
     def _linear_spacing(num_sections, offset=0):
         # calculates the cosine spacing
         index = np.arange(num_sections+1)
-        spacing = (index[:]-offset)/num_sections
+        spacing = (index-offset)/num_sections
 
         return spacing
 
@@ -559,7 +555,7 @@ class LLGrid:
                 u_a[i] = axial
                 count += 1
 
-        self._data["u_s"][:] = np.cross(u_a[:], u_n[:])
+        self._data["u_s"] = np.cross(u_a, u_n)
 
     def _calc_coefficients(self):
         # Calculates section airfoil properties using linear interpolation.
