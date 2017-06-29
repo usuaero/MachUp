@@ -50,6 +50,15 @@ def small_wing_grid():
 
 
 @pytest.fixture
+def linear_wing_grid():
+    """Get a LLGrid w/ linear spacing for the straight_wing_5sect.json example."""
+    filename = PLANE_DIR+"straight_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    grid = mod.LLGrid(plane, cosine_spacing=False)
+    return grid
+
+
+@pytest.fixture
 def small_plane_model():
     """Get a LLModel from the straight_simple_plane.json example."""
     filename = PLANE_DIR+"straight_simple_plane.json"
@@ -580,6 +589,22 @@ def test_get_grid_position_swept(swept_wing_grid):
     assert np.allclose(r_1_pos, r_1, rtol=0., atol=1e-15) is True
     assert np.allclose(r_2_pos, r_2, rtol=0., atol=1e-15) is True
 
+def test_get_grid_position_linear(linear_wing_grid):
+    # get vortex positions from grid
+    r_pos = linear_wing_grid.get_control_point_pos()
+    r_1_pos, r_2_pos = linear_wing_grid.get_corner_point_pos()
+
+    r_cp = np.zeros((10, 3))
+    r_1 = np.zeros((10, 3))
+    r_2 = np.zeros((10, 3))
+
+    r_cp[:, 1] = np.array([-3.6, -2.8, -2., -1.2, -0.4, 0.4, 1.2, 2., 2.8, 3.6])
+    r_1[:, 1] = np.array([-4., -3.2, -2.4, -1.6, -0.8, 0., 0.8, 1.6, 2.4, 3.2])
+    r_2[:, 1] = np.array([-3.2, -2.4, -1.6, -0.8, 0., 0.8, 1.6, 2.4, 3.2, 4.])
+
+    assert np.allclose(r_pos, r_cp, rtol=0., atol=1e-15) is True
+    assert np.allclose(r_1_pos, r_1, rtol=0., atol=1e-15) is True
+    assert np.allclose(r_2_pos, r_2, rtol=0., atol=1e-15) is True
 
 # def test_grid_linear_interp(small_wing_grid):
 #     lift_slopes = small_wing_grid.get_lift_slopes()

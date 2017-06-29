@@ -79,9 +79,9 @@ class LLModel:
 
     """
 
-    def __init__(self, plane):
+    def __init__(self, plane, cosine_spacing=True):
         self._num_vortices = plane.get_num_sections()
-        self._grid = LLGrid(plane)
+        self._grid = LLGrid(plane, cosine_spacing)
         self._aero_data = {
             'v_loc': np.zeros((self._num_vortices, 3)),
             'u_inf': np.zeros(3),
@@ -399,12 +399,13 @@ class LLGrid:
 
     """
 
-    def __init__(self, plane):
+    def __init__(self, plane, cosine_spacing=True):
         # eventually num sections will be specified through LLGrid
         # and not the geometry classes
         self._plane = plane
         self._num_sections = plane.get_num_sections()
         self._wing_segments = plane.get_wingsegments()
+        self._uses_cosine_spacing = cosine_spacing
         self._data = {
             'r': np.zeros((self._num_sections, 3)),
             'r_1': np.zeros((self._num_sections, 3)),
@@ -443,8 +444,12 @@ class LLGrid:
 
         for seg in self._wing_segments:
             num_sections = seg.get_num_sections()
-            cp_spacing = self._cosine_spacing(num_sections, 0.5)
-            corner_spacing = self._cosine_spacing(num_sections)
+            if self._uses_cosine_spacing:
+                cp_spacing = self._cosine_spacing(num_sections, 0.5)
+                corner_spacing = self._cosine_spacing(num_sections)
+            else:
+                cp_spacing = self._linear_spacing(num_sections, 0.5)
+                corner_spacing = self._linear_spacing(num_sections)
 
             cp_pos = self._calc_segment_points(seg, cp_spacing[1:])
             c1_pos = self._calc_segment_points(seg, corner_spacing[:-1])
@@ -463,6 +468,14 @@ class LLGrid:
         # calculates the cosine spacing
         index = np.arange(num_sections+1)
         spacing = .5*(1.-np.cos((np.pi/num_sections)*(index[:]-offset)))
+
+        return spacing
+
+    @staticmethod
+    def _linear_spacing(num_sections, offset=0):
+        # calculates the cosine spacing
+        index = np.arange(num_sections+1)
+        spacing = (index[:]-offset)/num_sections
 
         return spacing
 
@@ -579,7 +592,10 @@ class LLGrid:
 
         for seg in self._wing_segments:
             num_sections = seg.get_num_sections()
-            spacing = self._cosine_spacing(num_sections, 0.5)[1:]
+            if self._uses_cosine_spacing:
+                spacing = self._cosine_spacing(num_sections, 0.5)[1:]
+            else:
+                spacing = self._linear_spacing(num_sections, 0.5)[1:]
             surf_start, surf_end = seg.get_control_surface_span()
             chord_start = seg.get_control_surface_chord()[0]
             m_a, m_e, m_r = seg.get_control_mix()
