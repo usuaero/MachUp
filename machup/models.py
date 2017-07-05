@@ -78,6 +78,7 @@ class LLModel:
                           aero_state=aero_state)
 
     """
+    # pylint: disable=too-many-instance-attributes, too-few-public-methods
 
     def __init__(self, plane, cosine_spacing=True):
         self._num_vortices = plane.get_num_sections()
@@ -391,7 +392,7 @@ class LLGrid:
     Parameters
     ----------
     machup.Plane
-        Plane object that contains all of the nessecary information
+        Plane object that contains all of the necessary information
         about aircraft geometry.
 
     Returns
@@ -407,6 +408,7 @@ class LLGrid:
         self._plane = plane
         self._num_sections = plane.get_num_sections()
         self._wing_segments = plane.get_wingsegments()
+        self._segment_slices = []
         self._uses_cosine_spacing = cosine_spacing
         self._data = {
             'r': np.zeros((self._num_sections, 3)),
@@ -431,39 +433,36 @@ class LLGrid:
 
     def _update_data(self):
         # Builds arrays using current wing list
-        self._calc_control_points()
-        self._calc_area()
-        self._calc_unit_vectors()
-        self._calc_coefficients()
-        self._calc_control_surfaces()
-
-    def _calc_control_points(self):
-        # Builds arrays for the control point and corner positions of
-        # vortices
-        control_points = np.zeros((0, 3))
-        corner_points_1 = np.zeros((0, 3))
-        corner_points_2 = np.zeros((0, 3))
-
+        index = 0
+        slices = self._segment_slices
         for seg in self._wing_segments:
             num_sections = seg.get_num_sections()
-            if self._uses_cosine_spacing:
-                cp_spacing = self._cosine_spacing(num_sections, 0.5)
-                corner_spacing = self._cosine_spacing(num_sections)
-            else:
-                cp_spacing = self._linear_spacing(num_sections, 0.5)
-                corner_spacing = self._linear_spacing(num_sections)
+            cur_slice = slice(index, index+num_sections)
+            slices.append(cur_slice)
+            index += num_sections
 
-            cp_pos = self._calc_segment_points(seg, cp_spacing[1:])
-            c1_pos = self._calc_segment_points(seg, corner_spacing[:-1])
-            c2_pos = self._calc_segment_points(seg, corner_spacing[1:])
+            self._calc_control_points(seg, cur_slice)
+            self._calc_chord(seg, cur_slice)
+            self._calc_area(seg, cur_slice)
+            self._calc_unit_vectors(seg, cur_slice)
+            self._calc_coefficients(seg, cur_slice)
+            self._calc_control_surfaces(seg, cur_slice)
 
-            control_points = np.concatenate((control_points, cp_pos))
-            corner_points_1 = np.concatenate((corner_points_1, c1_pos))
-            corner_points_2 = np.concatenate((corner_points_2, c2_pos))
+    def _calc_control_points(self, seg, seg_slice):
+        # Builds arrays for the control point and corner positions of
+        # vortices
+        num_sections = seg.get_num_sections()
 
-        self._data["r"] = control_points
-        self._data["r_1"] = corner_points_1
-        self._data["r_2"] = corner_points_2
+        if self._uses_cosine_spacing:
+            cp_spacing = self._cosine_spacing(num_sections, 0.5)
+            corner_spacing = self._cosine_spacing(num_sections)
+        else:
+            cp_spacing = self._linear_spacing(num_sections, 0.5)
+            corner_spacing = self._linear_spacing(num_sections)
+
+        self._data["r"][seg_slice] = self._calc_segment_points(seg, cp_spacing[1:])
+        self._data["r_1"][seg_slice] = self._calc_segment_points(seg, corner_spacing[:-1])
+        self._data["r_2"][seg_slice] = self._calc_segment_points(seg, corner_spacing[1:])
 
     @staticmethod
     def _cosine_spacing(num_sections, offset=0):
@@ -506,126 +505,103 @@ class LLGrid:
 
         return u_normal
 
-    def _calc_area(self):
-        # calculates the chord and planform area of each section
-        areas = self._data["dS"]
-        corner_1 = self._data["r_1"]
-        corner_2 = self._data["r_2"]
-        chord_1 = self._data["c_1"]
-        chord_2 = self._data["c_2"]
-        count = 0
+    def _calc_chord(self, seg, seg_slice):
+        # calculates the chord at each wing section.
+        chord = seg.get_chord()
+        self._data["c_1"][seg_slice] = chord
+        self._data["c_2"][seg_slice] = chord
 
-        for seg in self._wing_segments:
-            num_sections = seg.get_num_sections()
-            sweep = seg.get_sweep()*np.pi/180.
-            chord = seg.get_chord()
-            index = range(count, count+num_sections)
-            for i in index:
-                areas[i] = np.cos(sweep)*(np.linalg.norm(corner_2[i]-corner_1[i]))*chord
-                chord_1[i] = chord
-                chord_2[i] = chord
-                count += 1
+    def _calc_area(self, seg, seg_slice):
+        # calculates planform area of each section
+        corner_1 = self._data["r_1"][seg_slice]
+        corner_2 = self._data["r_2"][seg_slice]
+        chord_1 = self._data["c_1"][seg_slice]
+        chord_2 = self._data["c_2"][seg_slice]
 
-    def _calc_unit_vectors(self):
+        sweep = seg.get_sweep()*np.pi/180.
+
+        spanwise_l = np.cos(sweep)*(np.linalg.norm(corner_2-corner_1, axis=1))
+        self._data["dS"][seg_slice] = spanwise_l*(chord_1+chord_2)/2.
+
+    def _calc_unit_vectors(self, seg, seg_slice):
         # Calculates the axial, normal, and spanwise unit vectors for
         # each section.
-        u_n = self._data["u_n"]
-        u_a = self._data["u_a"]
-        count = 0
 
-        for seg in self._wing_segments:
-            twist = (seg.get_mounting_angle() - seg.get_washout())*np.pi/180.
-            dihedral = seg.get_dihedral()*np.pi/180.
-            s_twist = np.sin(twist)
-            c_twist = np.cos(twist)
-            s_dihedral = np.sin(dihedral)
-            c_dihedral = np.cos(dihedral)
-            normal = np.array([-s_twist,
-                               -s_dihedral*c_twist,
-                               -c_dihedral*c_twist])
-            axial = np.array([-c_twist,
-                              s_dihedral*s_twist,
-                              c_dihedral*s_twist])
-            if seg.get_side() == "left":
-                normal[1] = -normal[1]
-                axial[1] = -axial[1]
-            index = range(count, count+seg.get_num_sections())
-            for i in index:
-                u_n[i] = normal
-                u_a[i] = axial
-                count += 1
+        twist = (seg.get_mounting_angle() - seg.get_washout())*np.pi/180.
+        dihedral = seg.get_dihedral()*np.pi/180.
+        s_twist = np.sin(twist)
+        c_twist = np.cos(twist)
+        s_dihedral = np.sin(dihedral)
+        c_dihedral = np.cos(dihedral)
+        normal = np.array([-s_twist,
+                           -s_dihedral*c_twist,
+                           -c_dihedral*c_twist])
+        axial = np.array([-c_twist,
+                          s_dihedral*s_twist,
+                          c_dihedral*s_twist])
+        if seg.get_side() == "left":
+            normal[1] = -normal[1]
+            axial[1] = -axial[1]
 
-        self._data["u_s"] = np.cross(u_a, u_n)
+        self._data["u_n"][seg_slice] = normal
+        self._data["u_a"][seg_slice] = axial
+        self._data["u_s"][seg_slice] = np.cross(axial, normal)
 
-    def _calc_coefficients(self):
-        # Calculates section airfoil properties using linear interpolation.
-        cl_a = self._data["CL_a"]
-        a_l0 = self._data["alpha_L0"]
-        cm_a = self._data["Cm_a"]
-        cm_l0 = self._data["Cm_L0"]
-        count = 0
+    def _calc_coefficients(self, seg, seg_slice):
+        # Calculates section airfoil properties
+        root_airfoil = seg.get_root_airfoil()
+        lift_slope = root_airfoil.get_lift_slope()
+        alpha_l0 = root_airfoil.get_zero_lift_alpha()
+        moment_slope = root_airfoil.get_moment_slope()
+        moment_l0 = root_airfoil.get_zero_lift_moment()
 
-        for seg in self._wing_segments:
-            num_sections = seg.get_num_sections()
-            root_airfoil = seg.get_root_airfoil()
-            lift_slope = root_airfoil.get_lift_slope()
-            alpha_l0 = root_airfoil.get_zero_lift_alpha()
-            moment_slope = root_airfoil.get_moment_slope()
-            moment_l0 = root_airfoil.get_zero_lift_moment()
-            index = range(count, count+num_sections)
-            for i in index:
-                cl_a[i] = lift_slope
-                a_l0[i] = alpha_l0
-                cm_a[i] = moment_slope
-                cm_l0[i] = moment_l0
-                count += 1
+        self._data["CL_a"][seg_slice] = lift_slope
+        self._data["alpha_L0"][seg_slice] = alpha_l0
+        self._data["Cm_a"][seg_slice] = moment_slope
+        self._data["Cm_L0"][seg_slice] = moment_l0
 
-    def _calc_control_surfaces(self):
+
+    def _calc_control_surfaces(self, seg, seg_slice):
         # Sets up arrays that describe control surface properties
         # I know this is pretty messy as it currently stands but it is
         # all going to get rewritten anyway in the next version.
-        flap_eff = self._data['flap_eff']
-        mixing_a = self._data['mixing_a']
-        mixing_e = self._data['mixing_e']
-        mixing_r = self._data['mixing_r']
-        cm_d = self._data['Cm_d']
+        # pylint: disable=too-many-locals
+        flap_eff = self._data['flap_eff'][seg_slice]
+        mixing_a = self._data['mixing_a'][seg_slice]
+        mixing_e = self._data['mixing_e'][seg_slice]
+        mixing_r = self._data['mixing_r'][seg_slice]
+        cm_d = self._data['Cm_d'][seg_slice]
 
-        count = 0
+        num_sections = seg.get_num_sections()
+        if self._uses_cosine_spacing:
+            spacing = self._cosine_spacing(num_sections, 0.5)[1:]
+        else:
+            spacing = self._linear_spacing(num_sections, 0.5)[1:]
+        surf_start, surf_end = seg.get_control_surface_span()
+        chord_start = seg.get_control_surface_chord()[0]
+        m_a, m_e, m_r = seg.get_control_mix()
+        sealed = seg.is_control_surface_sealed()
 
-        for seg in self._wing_segments:
-            num_sections = seg.get_num_sections()
-            if self._uses_cosine_spacing:
-                spacing = self._cosine_spacing(num_sections, 0.5)[1:]
-            else:
-                spacing = self._linear_spacing(num_sections, 0.5)[1:]
-            surf_start, surf_end = seg.get_control_surface_span()
-            chord_start = seg.get_control_surface_chord()[0]
-            m_a, m_e, m_r = seg.get_control_mix()
-            sealed = seg.is_control_surface_sealed()
-
-            index = range(count, count+num_sections)
-            for local_i, global_i in enumerate(index):
-                # if control point is covered by control surface, then
-                # set mixing parameters.
-                if ((spacing[local_i] > surf_start) and
-                        (spacing[local_i] < surf_end)):
-                    # pylint: disable=no-member
-                    mixing_a[global_i] = m_a
-                    mixing_e[global_i] = m_e
-                    mixing_r[global_i] = m_r
-                    cf_c = chord_start
-                    theta_f = np.arccos(2.*cf_c - 1.)
-                    eps_f = 1. - (theta_f - np.sin(theta_f))/np.pi
-                    # the following is a curve fit of Fig. 1.7.4 in
-                    # Phillip's book
-                    eta_h = 3.9598*np.arctan((cf_c+0.006527) *
-                                             89.2574+4.898015)-5.18786
-                    if not sealed:
-                        eta_h *= 0.8
-                    flap_eff[global_i] = eta_h*eps_f
-                    cm_d[global_i] = (np.sin(2.*theta_f)-2.*np.sin(theta_f))/4.
-
-                count += 1
+        for i in range(num_sections):
+            # if control point is covered by control surface, then
+            # set mixing parameters.
+            if ((spacing[i] > surf_start) and
+                    (spacing[i] < surf_end)):
+                # pylint: disable=no-member
+                mixing_a[i] = m_a
+                mixing_e[i] = m_e
+                mixing_r[i] = m_r
+                cf_c = chord_start
+                theta_f = np.arccos(2.*cf_c - 1.)
+                eps_f = 1. - (theta_f - np.sin(theta_f))/np.pi
+                # the following is a curve fit of Fig. 1.7.4 in
+                # Phillip's book
+                eta_h = 3.9598*np.arctan((cf_c+0.006527) *
+                                         89.2574+4.898015)-5.18786
+                if not sealed:
+                    eta_h *= 0.8
+                flap_eff[i] = eta_h*eps_f
+                cm_d[i] = (np.sin(2.*theta_f)-2.*np.sin(theta_f))/4.
 
     def get_cg_location(self):
         """Get the location of the aircraft center of gravity.
