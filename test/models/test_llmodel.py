@@ -103,6 +103,24 @@ def swept_wing_grid():
     return grid
 
 
+@pytest.fixture
+def tapered_wing_model():
+    """Get a LLModel from the tapered_wing_5sect.json example."""
+    filename = PLANE_DIR+"tapered_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    model = mod.LLModel(plane)
+    return model
+
+
+@pytest.fixture
+def tapered_wing_grid():
+    """Get a LLGrid from the tapered_wing_5sect.json example."""
+    filename = PLANE_DIR+"tapered_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    grid = mod.LLGrid(plane)
+    return grid
+
+
 def test_linear_solver_forces(small_wing_model):
     results = small_wing_model.solve(stype="linear")
     machup = np.array([-1.31741502082177E-003,
@@ -535,6 +553,46 @@ def test_linear_solver_sweep(swept_wing_model):
     assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
 
 
+def test_linear_solver_taper(tapered_wing_model):
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 4.,
+        "beta": 0.,
+        "rho": 1.
+    }
+    results = tapered_wing_model.solve(stype="linear",
+                                       aero_state=aero_state)
+
+    test = np.array([2.13070222154639E-002,
+                     0.00000000000000E+000,
+                     -3.63577696250575E-001,
+                     1.38777878078145E-017,
+                     1.45431078500230E-001,
+                     8.67361737988404E-019,])
+
+    if not COMPARING_WITH_MACHUP:
+        test[0] = 0.021293042810169929
+        test[1] = 0.0000000000000000
+        test[2] = -0.36328219682066454
+        test[3] = 0.0000000000000000
+        test[4] = 0.14531287872826582
+        test[5] = 0.0000000000000000
+
+    r_x = results["FX"]/(0.5*100.*6.)
+    r_y = results["FY"]/(0.5*100.*6.)
+    r_z = results["FZ"]/(0.5*100.*6.)
+    r_l = results["l"]/(0.5*100.*6.*8.)
+    r_m = results["m"]/(0.5*100.*6.*1.)
+    r_n = results["n"]/(0.5*100.*6.*8.)
+
+    assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_z, test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_l, test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_m, test[4], rtol=0., atol=1e-11) is True
+    assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
+
+
 def test_get_grid_position(single_wing_grid):
     # get vortex positions from grid
     r_pos = single_wing_grid.get_control_point_pos()
@@ -654,6 +712,36 @@ def test_grid_get_swept_area(swept_wing_grid):
                           2.500000000000000, 0.954915028125264])
 
     assert np.allclose(test_vals, area_vals, rtol=0., atol=1e-13) is True
+
+
+def test_grid_get_tapered_area(tapered_wing_grid):
+    area_vals = tapered_wing_grid.get_section_areas()
+
+    test_vals = np.array([0.200101632734447, 0.610245751406263,
+                          0.927050983124842, 0.889754248593737,
+                          0.372847384140710, 0.372847384140710,
+                          0.889754248593737, 0.927050983124842,
+                          0.610245751406263, 0.200101632734447])
+
+    assert np.allclose(test_vals, area_vals, rtol=0., atol=1e-13) is True
+
+
+def test_grid_get_tapered_chord(tapered_wing_grid):
+    chord_1, chord_2 = tapered_wing_grid.get_chord_lengths()
+
+    test_1 = np.array([0.500000000000000, 0.547745751406263,
+                       0.672745751406263, 0.827254248593737,
+                       0.952254248593737, 1.000000000000000,
+                       0.952254248593737, 0.827254248593737,
+                       0.672745751406263, 0.547745751406263])
+    test_2 = np.array([0.547745751406263, 0.672745751406263,
+                       0.827254248593737, 0.952254248593737,
+                       1.000000000000000, 0.952254248593737,
+                       0.827254248593737, 0.672745751406263,
+                       0.547745751406263, 0.500000000000000])
+
+    assert np.allclose(test_1, chord_1, rtol=0., atol=1e-13) is True
+    assert np.allclose(test_2, chord_2, rtol=0., atol=1e-13) is True
 
 
 def test_grid_get_normals(small_wing_grid):

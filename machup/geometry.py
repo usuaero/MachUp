@@ -428,19 +428,18 @@ class WingSegment:
             raise RuntimeError("side specified incorrectly")
 
     def get_chord(self):
-        """Get the chord of the wing segment.
+        """Get the root and tip chords of the wing segment.
 
         Returns
         -------
-        float
-            The chord of the segment.
-
-        Notes
-        -----
-        For now, this assumes a single chord across length of wing.
+        tuple
+            The root and tip chords of the segment respectively.
 
         """
-        return self._dimensions["root_chord"]
+        root_chord = self._dimensions["root_chord"]
+        tip_chord = self._dimensions["tip_chord"]
+
+        return root_chord, tip_chord
 
     def get_mounting_angle(self):
         """Get the mounting angle of the wing segment.

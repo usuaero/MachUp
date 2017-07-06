@@ -277,6 +277,7 @@ class LLModel:
                    (np.sum(v_loc*u_n, axis=1)+v_loc_mag*(delta_flap-alpha_l0)))
 
         # use the following b to compare with the fortran version linear solver
+        # pylint: disable=no-member
         # u_a = self._grid.get_unit_axial_vectors()
         # alpha_loc = np.arctan(np.sum(v_loc*u_n, axis=1) /
         #                       np.sum(v_loc*u_a, axis=1))
@@ -507,9 +508,32 @@ class LLGrid:
 
     def _calc_chord(self, seg, seg_slice):
         # calculates the chord at each wing section.
-        chord = seg.get_chord()
-        self._data["c_1"][seg_slice] = chord
-        self._data["c_2"][seg_slice] = chord
+        root_chord, tip_chord = seg.get_chord()
+        side = seg.get_side()
+        if side == "left":
+            left_chord = tip_chord
+            right_chord = root_chord
+        else:
+            left_chord = root_chord
+            right_chord = tip_chord
+
+        r_1 = self._data["r_1"][seg_slice]
+        r_2 = self._data["r_2"][seg_slice]
+        c_1 = self._interp_accross_segment(left_chord, right_chord, r_1[0], r_2[-1], r_1)
+        c_2 = self._interp_accross_segment(left_chord, right_chord, r_1[0], r_2[-1], r_2)
+
+        self._data["c_1"][seg_slice] = c_1
+        self._data["c_2"][seg_slice] = c_2
+
+    @staticmethod
+    def _interp_accross_segment(val_left, val_right, left_pos, right_pos, points):
+        # linearly interpolates values accross wingsegment and returns and array of the
+        # resulting values at the given points
+        distances = np.linalg.norm(points-left_pos, axis=1)
+        slope = (val_right-val_left)/np.linalg.norm(right_pos-left_pos)
+        values = val_left + distances*slope
+
+        return values
 
     def _calc_area(self, seg, seg_slice):
         # calculates planform area of each section
