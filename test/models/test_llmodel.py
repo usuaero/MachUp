@@ -121,6 +121,15 @@ def tapered_wing_grid():
     return grid
 
 
+@pytest.fixture
+def washout_wing_model():
+    """Get a LLModel from the washout_wing_5sect.json example."""
+    filename = PLANE_DIR+"washout_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    model = mod.LLModel(plane)
+    return model
+
+
 def test_linear_solver_forces(small_wing_model):
     results = small_wing_model.solve(stype="linear")
     machup = np.array([-1.31741502082177E-003,
@@ -584,6 +593,46 @@ def test_linear_solver_taper(tapered_wing_model):
     r_l = results["l"]/(0.5*100.*6.*8.)
     r_m = results["m"]/(0.5*100.*6.*1.)
     r_n = results["n"]/(0.5*100.*6.*8.)
+
+    assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_z, test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_l, test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_m, test[4], rtol=0., atol=1e-11) is True
+    assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
+
+
+def test_linear_solver_washout(washout_wing_model):
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 4.,
+        "beta": 0.,
+        "rho": 1.
+    }
+    results = washout_wing_model.solve(stype="linear",
+                                       aero_state=aero_state)
+
+    test = np.array([2.44572906233143E-002,
+                     0.00000000000000E+000,
+                     -5.08457565984016E-001,
+                     0.00000000000000E+000,
+                     1.53558495287134E-001,
+                     0.00000000000000E+000])
+
+    if not COMPARING_WITH_MACHUP:
+        test[0] = 0.024450154128978562
+        test[1] = 0.0000000000000000
+        test[2] = -0.50818676041079702
+        test[3] = 0.0000000000000000
+        test[4] = 0.1534084986133617
+        test[5] = 0.0000000000000000
+
+    r_x = results["FX"]/(0.5*100.*8.)
+    r_y = results["FY"]/(0.5*100.*8.)
+    r_z = results["FZ"]/(0.5*100.*8.)
+    r_l = results["l"]/(0.5*100.*8.*8.)
+    r_m = results["m"]/(0.5*100.*8.*1.)
+    r_n = results["n"]/(0.5*100.*8.*8.)
 
     assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
     assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True

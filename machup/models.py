@@ -422,6 +422,7 @@ class LLGrid:
             'alpha_L0': np.zeros(self._num_sections),
             'Cm_a': np.zeros(self._num_sections),
             'Cm_L0': np.zeros(self._num_sections),
+            'washout': np.zeros(self._num_sections),
             'u_a': np.zeros((self._num_sections, 3)),
             'u_n': np.zeros((self._num_sections, 3)),
             'u_s': np.zeros((self._num_sections, 3)),
@@ -445,6 +446,7 @@ class LLGrid:
             self._calc_control_points(seg, cur_slice)
             self._calc_chord(seg, cur_slice)
             self._calc_area(seg, cur_slice)
+            self._calc_washout(seg, cur_slice)
             self._calc_unit_vectors(seg, cur_slice)
             self._calc_coefficients(seg, cur_slice)
             self._calc_control_surfaces(seg, cur_slice)
@@ -547,11 +549,36 @@ class LLGrid:
         spanwise_l = np.cos(sweep)*(np.linalg.norm(corner_2-corner_1, axis=1))
         self._data["dS"][seg_slice] = spanwise_l*(chord_1+chord_2)/2.
 
+    def _calc_washout(self, seg, seg_slice):
+        # calculates the linear washout along the wing
+        total_washout = seg.get_washout()
+        r_cp = self._data["r"][seg_slice]
+        left_tip = self._data["r_1"][seg_slice][0]
+        right_tip = self._data["r_2"][seg_slice][-1]
+
+        side = seg.get_side()
+        if side == "left":
+            left_washout = total_washout
+            right_washout = 0.
+        else:
+            left_washout = 0.
+            right_washout = total_washout
+
+        washout = self._interp_accross_segment(left_washout,
+                                               right_washout,
+                                               left_tip,
+                                               right_tip,
+                                               r_cp)
+
+        self._data["washout"][seg_slice] = washout
+
+
     def _calc_unit_vectors(self, seg, seg_slice):
         # Calculates the axial, normal, and spanwise unit vectors for
         # each section.
 
-        twist = (seg.get_mounting_angle() - seg.get_washout())*np.pi/180.
+        washout = self._data["washout"][seg_slice]
+        twist = (seg.get_mounting_angle() - washout)*np.pi/180.
         dihedral = seg.get_dihedral()*np.pi/180.
         s_twist = np.sin(twist)
         c_twist = np.cos(twist)
@@ -559,13 +586,14 @@ class LLGrid:
         c_dihedral = np.cos(dihedral)
         normal = np.array([-s_twist,
                            -s_dihedral*c_twist,
-                           -c_dihedral*c_twist])
+                           -c_dihedral*c_twist]).T
         axial = np.array([-c_twist,
                           s_dihedral*s_twist,
-                          c_dihedral*s_twist])
+                          c_dihedral*s_twist]).T
+
         if seg.get_side() == "left":
-            normal[1] = -normal[1]
-            axial[1] = -axial[1]
+            normal[:, 1] *= -1.
+            axial[:, 1] *= -1.
 
         self._data["u_n"][seg_slice] = normal
         self._data["u_a"][seg_slice] = axial
