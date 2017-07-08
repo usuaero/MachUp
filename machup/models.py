@@ -493,7 +493,7 @@ class LLGrid:
         y_pos = length*spacing*unit_s[1] + left_pos[1]
         z_pos = length*spacing*unit_s[2] + left_pos[2]
 
-        pos = np.rot90(np.array([z_pos, y_pos, x_pos]), axes=(1, 0))
+        pos = np.array([x_pos, y_pos, z_pos]).T
 
         return pos
 
