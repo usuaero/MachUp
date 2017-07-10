@@ -731,38 +731,54 @@ subroutine sf_target_CL(t,json_command)
     !store alpha and de in case no solution is found
     alpha_temp = t%alpha !radians
 
-    alpha = 0.0 !t%alpha !radians
-
     call myjson_get(json_command, 'delta', delta, 0.5);
     call myjson_get(json_command, 'convergence', maxres, 1.0e-10);
     call myjson_get(json_command, 'relaxation', relaxation, 1.0);
     call myjson_get(json_command, 'maxiter', maxiter, 50);
 
     write(*,*)
+#ifndef dnad
     write(*,*) '    derivative step size [deg] = ',delta
     write(*,*) '                   convergence = ',maxres
     delta = 0.5*pi/180.0 !radians
 
     write(*,*)
     write(*,*) '   alpha[deg]                CL                        CL_Residual'
-    call sf_target_CL_residual(t,alpha,CL_target,residual)
+    call sf_target_CL_residual(t,CL_target,residual)
     write(*,*) alpha*180.0/pi,t%GL(t%nrealwings+1,3), residual
+#else
+    write(*,*) '                   convergence = ',maxres
+
+    write(*,*)
+    write(*,*) '   alpha[deg]                CL                        d(CL)/d(alpha)'
+    call plane_run_current(t)
+    write(*,*) t%alpha%x*180.0/pi, t%GL(t%nrealwings+1,3)%x, t%GL(t%nrealwings+1,3)%dx(1)
+    residual = t%GL(t%nrealwings+1,3) - CL_target
+#endif
 
     iter = 0
     do while (abs(residual) > maxres)
-
-        alpha = alpha + delta
-        call sf_target_CL_residual(t,alpha,CL_target,ans1)
-        alpha = alpha - 2.0*delta
-        call sf_target_CL_residual(t,alpha,CL_target,ans2)
-        alpha = alpha + delta
+#ifndef dnad
+        t%alpha = t%alpha + delta
+        call sf_target_CL_residual(t,CL_target,ans1)
+        t%alpha = t%alpha - 2.0*delta
+        call sf_target_CL_residual(t,CL_target,ans2)
+        t%alpha = t%alpha + delta
 
         gradient = (ans1 - ans2)/2.0/delta
+        t%alpha = t%alpha - relaxation*residual/gradient
 
-        alpha = alpha - relaxation*residual/gradient
-
-        call sf_target_CL_residual(t,alpha,CL_target,residual)
+        call sf_target_CL_residual(t,CL_target,residual)
         write(*,*) alpha*180.0/pi, t%GL(t%nrealwings+1,3), residual
+#else
+        t%alpha = t%alpha + (CL_target - t%GL(t%nrealwings+1, 3)) / t%GL(t%nrealwings+1, 3)%dx(1)
+        t%alpha%dx(1) = t%GL(t%nrealwings+1, 3)%dx(1) / t%GL(t%nrealwings+1, 3)%dx(1)
+        
+        call plane_run_current(t)
+        residual = t%GL(t%nrealwings+1, 3) - CL_target
+        write(*,*) t%alpha%x*180.0/pi, t%GL(t%nrealwings+1,3)%x, t%GL(t%nrealwings+1,3)%dx(1)
+#endif
+
         iter = iter + 1
         if(iter > maxiter) then
             write(*,*) 'Error. Maximum iterations reached. Trim point not found. Exiting trim.'
@@ -777,17 +793,16 @@ subroutine sf_target_CL(t,json_command)
 
     write(*,*)
     write(*,*) '------------- Results --------------------'
-    write(*,*) '      alpha [deg] = ',alpha*180.0/pi
+    write(*,*) '      alpha [deg] = ',t%alpha*180.0/pi
     write(*,*) '               CL = ',t%GL(t%nrealwings+1,3)
     write(*,*) '               CD = ',t%GD(t%nrealwings+1,3)
     write(*,*) '------------------------------------------'
     write(*,*)
 
-    t%alpha = alpha
     call json_value_create(p_root)           ! create the value and associate the pointer
     call to_object(p_root,trim(filename))    ! add the file name as the name of the overall structure
 
-    call json_value_add( p_root, 'alpha',   alpha*180.0/pi)
+    call json_value_add( p_root, 'alpha',   t%alpha*180.0/pi)
     call json_value_add( p_root, 'CL',   t%GL(t%nrealwings+1,3))
     call json_value_add( p_root, 'CD',   t%GD(t%nrealwings+1,3))
 
@@ -801,11 +816,10 @@ subroutine sf_target_CL(t,json_command)
 end subroutine sf_target_CL
 
 !-----------------------------------------------------------------------------------------------------------
-subroutine sf_target_CL_residual(t,alpha,CL_target,ans)
+subroutine sf_target_CL_residual(t,CL_target,ans)
     type(plane_t) :: t
-    real :: alpha,CL_target,ans
+    real :: CL_target,ans
 
-    t%alpha = alpha
     call plane_run_current(t)
     ans = t%GL(t%nrealwings+1,3) - CL_target
 end subroutine sf_target_CL_residual

@@ -161,6 +161,10 @@ subroutine plane_load_json(t)
     call myjson_get(t%json,'reference.lateral_length', t%lat_r)
 
     call myjson_get(t%json,'condition.alpha', t%alpha); t%alpha = t%alpha*pi/180.0
+#ifdef dnad
+    ! Always make alpha a design variable so it can be used in the target_CL function
+    t%alpha%dx(1) = 1.0
+#endif
     call myjson_get(t%json,'condition.beta', t%beta, 0.0); t%beta = t%beta*pi/180.0
 
     call myjson_get(t%json,'condition.omega.roll', t%omega(1), 0.0)

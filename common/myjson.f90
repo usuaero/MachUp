@@ -10,7 +10,7 @@ module myjson_m
 
     logical :: json_found
 #ifdef dnad
-    integer, save :: n_design_vars = 0
+    integer, save :: n_design_vars = 1  ! First design variable is always alpha
 #endif
 
     interface myjson_get
@@ -75,6 +75,7 @@ subroutine myjson_value_get_dual(json, name, value, default_value)
                 if(n_design_vars < ndv) then
                     n_design_vars = n_design_vars + 1
                     value%dx(n_design_vars) = vec(2)
+                    write(*,*) 'Design Variable ', n_design_vars, ': ', name
                 else
                     write(*,*) 'Error: The number of design variables exceeds the compiled limit: ', ndv
                     write(*,*) '       Reduce the number of design variables, or increase the limit by'
@@ -187,6 +188,7 @@ subroutine myjson_file_get_dual(json, name, value, default_value)
                 if(n_design_vars < ndv) then
                     n_design_vars = n_design_vars + 1
                     value%dx(n_design_vars) = vec(2)
+                    write(*,*) 'Design Variable ', n_design_vars, ': ', name
                 else
                     write(*,*) 'Error: The number of design variables exceeds the compiled limit: ', ndv
                     write(*,*) '       Reduce the number of design variables, or increase the limit by'
