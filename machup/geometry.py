@@ -348,16 +348,16 @@ class WingSegment:
             self._control_data["mix_rudder"] = mix_dict["rudder"]
         self._control_data["is_sealed"] = control_dict["is_sealed"]
 
-    def get_root_airfoil(self):
-        """Get the root Airfoil of the WingSegment.
+    def get_airfoils(self):
+        """Get the root and tip Airfoil of the WingSegment.
 
         Returns
         -------
-        Airfoil
-            The root Airfoil of the segment.
+        tuple
+            The root and tip Airfoils of the segment respectively.
 
         """
-        return self._root_airfoil
+        return self._root_airfoil, self._tip_airfoil
 
     def get_num_sections(self):
         """Get the number of sections of the WingSegment.

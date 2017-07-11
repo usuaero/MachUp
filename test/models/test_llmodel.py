@@ -51,7 +51,7 @@ def small_wing_grid():
 
 @pytest.fixture
 def linear_wing_grid():
-    """Get a LLGrid w/ linear spacing for the straight_wing_5sect.json example."""
+    """Get LLGrid w/ linear spacing using straight_wing_5sect.json example."""
     filename = PLANE_DIR+"straight_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
     grid = mod.LLGrid(plane, cosine_spacing=False)
@@ -125,6 +125,24 @@ def tapered_wing_grid():
 def washout_wing_model():
     """Get a LLModel from the washout_wing_5sect.json example."""
     filename = PLANE_DIR+"washout_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    model = mod.LLModel(plane)
+    return model
+
+
+@pytest.fixture
+def aero_twist_wing_grid():
+    """Get a LLGrid from the aero twist example."""
+    filename = PLANE_DIR+"aerodynamic_twist_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    grid = mod.LLGrid(plane)
+    return grid
+
+
+@pytest.fixture
+def aero_twist_wing_model():
+    """Get a LLModel from the aero twist example."""
+    filename = PLANE_DIR+"aerodynamic_twist_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
     model = mod.LLModel(plane)
     return model
@@ -577,7 +595,7 @@ def test_linear_solver_taper(tapered_wing_model):
                      -3.63577696250575E-001,
                      1.38777878078145E-017,
                      1.45431078500230E-001,
-                     8.67361737988404E-019,])
+                     8.67361737988404E-019])
 
     if not COMPARING_WITH_MACHUP:
         test[0] = 0.021293042810169929
@@ -642,11 +660,51 @@ def test_linear_solver_washout(washout_wing_model):
     assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
 
 
+def test_linear_solver_aero_twist(aero_twist_wing_model):
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 0.,
+        "beta": 0.,
+        "rho": 1.
+    }
+    results = aero_twist_wing_model.solve(stype="linear",
+                                          aero_state=aero_state)
+
+    test = np.array([-4.36302648170593E-004,
+                     0.00000000000000E+000,
+                     -9.50632859560165E-002,
+                     0.00000000000000E+000,
+                     1.22956281796976E-002,
+                     1.01643953670516E-020])
+
+    if not COMPARING_WITH_MACHUP:
+        test[0] = -0.00043889676281888524
+        test[1] = 0.0000000000000000
+        test[2] = -0.095479069234970571
+        test[3] = 0.0000000000000000
+        test[4] = 0.012264606949093567
+        test[5] = 0.0000000000000000
+
+    r_x = results["FX"]/(0.5*100.*8.)
+    r_y = results["FY"]/(0.5*100.*8.)
+    r_z = results["FZ"]/(0.5*100.*8.)
+    r_l = results["l"]/(0.5*100.*8.*8.)
+    r_m = results["m"]/(0.5*100.*8.*1.)
+    r_n = results["n"]/(0.5*100.*8.*8.)
+
+    assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_z, test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_l, test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_m, test[4], rtol=0., atol=1e-11) is True
+    assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
+
+
 def test_get_grid_position(single_wing_grid):
     # get vortex positions from grid
     r_pos = single_wing_grid.get_control_point_pos()
     r_1_pos, r_2_pos = single_wing_grid.get_corner_point_pos()
-    # set up what vortex positions should be for the single wing case
+    # set up what control point positins should be for the single wing case
     num_sections = 40
     span = 8.
     index = np.arange(num_sections+1)
@@ -705,6 +763,7 @@ def test_get_grid_position_swept(swept_wing_grid):
     assert np.allclose(r_1_pos, r_1, rtol=0., atol=1e-15) is True
     assert np.allclose(r_2_pos, r_2, rtol=0., atol=1e-15) is True
 
+
 def test_get_grid_position_linear(linear_wing_grid):
     # get vortex positions from grid
     r_pos = linear_wing_grid.get_control_point_pos()
@@ -722,15 +781,18 @@ def test_get_grid_position_linear(linear_wing_grid):
     assert np.allclose(r_1_pos, r_1, rtol=0., atol=1e-15) is True
     assert np.allclose(r_2_pos, r_2, rtol=0., atol=1e-15) is True
 
-# def test_grid_linear_interp(small_wing_grid):
-#     lift_slopes = small_wing_grid.get_lift_slopes()
-#
-#     test_vals = np.array([6.19981469263764, 6.21625271733377, 6.24285,
-#                           6.26944728266623, 6.28588530736236,
-#                           6.28588530736236, 6.26944728266623, 6.24285,
-#                           6.21625271733377, 6.19981469263764])
-#
-#     assert np.allclose(test_vals, lift_slopes, rtol=0., atol=1e-13) is True
+
+def test_grid_linear_interp(aero_twist_wing_grid):
+    lift_slopes = aero_twist_wing_grid.get_lift_slopes()
+
+    test_vals = np.array([6.28110521889743, 6.26555720879812,
+                          6.24040000000000, 6.21524279120188,
+                          6.19969478110257, 6.19969478110257,
+                          6.21524279120188, 6.24040000000000,
+                          6.26555720879812, 6.28110521889743])
+
+    assert np.allclose(test_vals, lift_slopes, rtol=0., atol=1e-13) is True
+
 
 def test_grid_get_lift_slope(small_wing_grid):
     lift_slopes = small_wing_grid.get_lift_slopes()

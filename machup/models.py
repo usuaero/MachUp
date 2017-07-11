@@ -78,9 +78,10 @@ class LLModel:
                           aero_state=aero_state)
 
     """
-    # pylint: disable=too-many-instance-attributes, too-few-public-methods
 
+    # pylint: disable=too-many-instance-attributes, too-few-public-methods
     def __init__(self, plane, cosine_spacing=True):
+        self._machup_compare = False
         self._num_vortices = plane.get_num_sections()
         self._grid = LLGrid(plane, cosine_spacing)
         self._aero_data = {
@@ -102,13 +103,13 @@ class LLModel:
             "m": 0.,
             "n": 0.
         }
-        self._vji = None #np.zeros((self._num_vortices, self._num_vortices, 3))
-        self._v_i = None #np.zeros((self._num_vortices, 3))
-        self._forces = None #np.zeros((self._num_vortices, 3))
-        self._moments = None #np.zeros((self._num_vortices, 3))
-        self._gamma = None #np.zeros(self._num_vortices)
-        self._a = None #np.zeros((self._num_vortices, self._num_vortices))
-        self._b = None #np.zeros(self._num_vortices)
+        self._vji = None  # np.zeros((self._num_vortices,self._num_vortices,3))
+        self._v_i = None  # np.zeros((self._num_vortices, 3))
+        self._forces = None  # np.zeros((self._num_vortices, 3))
+        self._moments = None  # np.zeros((self._num_vortices, 3))
+        self._gamma = None  # np.zeros(self._num_vortices)
+        self._a = None  # np.zeros((self._num_vortices, self._num_vortices))
+        self._b = None  # np.zeros(self._num_vortices)
 
     def _process_aero_state(self, state):
         # Takes state data from state and constructs necessary arrays
@@ -277,12 +278,22 @@ class LLModel:
                    (np.sum(v_loc*u_n, axis=1)+v_loc_mag*(delta_flap-alpha_l0)))
 
         # use the following b to compare with the fortran version linear solver
-        # pylint: disable=no-member
-        # u_a = self._grid.get_unit_axial_vectors()
-        # alpha_loc = np.arctan(np.sum(v_loc*u_n, axis=1) /
-        #                       np.sum(v_loc*u_a, axis=1))
-        # self._b = (v_loc_mag*v_loc_mag*delta_s*cl_a *
-        #            (alpha_loc + (delta_flap-alpha_l0)))
+        if self._machup_compare:
+            # pylint: disable=no-member
+            # The following matches how the fortran version of machup
+            # interpolates moment coefficient across each wingsegment.
+            u_a = self._grid.get_unit_axial_vectors()
+            cla_left = self._grid.get_left_lift_slopes()
+            cla_right = self._grid.get_right_lift_slopes()
+            al0_left = self._grid.get_left_zero_lift_alpha()
+            al0_right = self._grid.get_right_zero_lift_alpha()
+            spacing = self._grid.get_cp_spacing()
+            alpha_loc = np.arctan(np.sum(v_loc*u_n, axis=1) /
+                                  np.sum(v_loc*u_a, axis=1))
+            cl_left = cla_left*(alpha_loc + (delta_flap-al0_left))
+            cl_right = cla_right*(alpha_loc + (delta_flap-al0_right))
+            cl = cl_left + spacing*(cl_right - cl_left)
+            self._b = v_loc_mag*v_loc_mag*delta_s*cl
 
     def _effective_flap_deflection(self):
         # computes effective flap deflection (epsilon_f*delta) as in
@@ -348,8 +359,9 @@ class LLModel:
 
         v_i_mag = np.linalg.norm(v_i, axis=1)
         # use the following v_i_mag to compare with fortran version
-        # v_loc = self._aero_data["v_loc"]
-        # v_i_mag = np.linalg.norm(v_loc, axis=1)
+        if self._machup_compare:
+            v_loc = self._aero_data["v_loc"]
+            v_i_mag = np.linalg.norm(v_loc, axis=1)
         dyn_pressure = -0.5*rho*v_i_mag*v_i_mag
 
         self._moments = (dyn_pressure*c_m*int_chord2)[:, None]*u_s
@@ -372,7 +384,22 @@ class LLModel:
         alpha = np.arctan(np.sum(v_i*u_n, axis=1) /
                           np.sum(v_i*u_a, axis=1))
 
-        c_m = cm_l0 + cm_a*(alpha - alpha_l0) + delta_c*cm_d
+        if self._machup_compare:
+            # The following matches how the fortran version of machup
+            # interpolates moment coefficient across each wingsegment.
+            spacing = self._grid.get_cp_spacing()
+            cma_left = self._grid.get_left_moment_slopes()
+            cma_right = self._grid.get_right_moment_slopes()
+            cml0_left = self._grid.get_left_zero_lift_moments()
+            cml0_right = self._grid.get_right_zero_lift_moments()
+            al0_left = self._grid.get_left_zero_lift_alpha()
+            al0_right = self._grid.get_right_zero_lift_alpha()
+
+            cm_left = cml0_left+cma_left*(alpha-al0_left)+delta_c*cm_d
+            cm_right = cml0_right+cma_right*(alpha-al0_right)+delta_c*cm_d
+            c_m = cm_left + spacing*(cm_right - cm_left)
+        else:
+            c_m = cm_l0 + cm_a*(alpha - alpha_l0) + delta_c*cm_d
 
         return c_m
 
@@ -412,6 +439,9 @@ class LLGrid:
         self._segment_slices = []
         self._uses_cosine_spacing = cosine_spacing
         self._data = {
+            'spacing_cp': np.zeros(self._num_sections),
+            'spacing_1': np.zeros(self._num_sections),
+            'spacing_2': np.zeros(self._num_sections),
             'r': np.zeros((self._num_sections, 3)),
             'r_1': np.zeros((self._num_sections, 3)),
             'r_2': np.zeros((self._num_sections, 3)),
@@ -419,9 +449,17 @@ class LLGrid:
             'c_2': np.zeros(self._num_sections),
             'dS': np.zeros(self._num_sections),
             'CL_a': np.zeros(self._num_sections),
+            'CL_a_left': np.zeros(self._num_sections),
+            'CL_a_right': np.zeros(self._num_sections),
             'alpha_L0': np.zeros(self._num_sections),
+            'alpha_L0_left': np.zeros(self._num_sections),
+            'alpha_L0_right': np.zeros(self._num_sections),
             'Cm_a': np.zeros(self._num_sections),
+            'Cm_a_left': np.zeros(self._num_sections),
+            'Cm_a_right': np.zeros(self._num_sections),
             'Cm_L0': np.zeros(self._num_sections),
+            'Cm_L0_left': np.zeros(self._num_sections),
+            'Cm_L0_right': np.zeros(self._num_sections),
             'washout': np.zeros(self._num_sections),
             'u_a': np.zeros((self._num_sections, 3)),
             'u_n': np.zeros((self._num_sections, 3)),
@@ -463,9 +501,16 @@ class LLGrid:
             cp_spacing = self._linear_spacing(num_sections, 0.5)
             corner_spacing = self._linear_spacing(num_sections)
 
-        self._data["r"][seg_slice] = self._calc_segment_points(seg, cp_spacing[1:])
-        self._data["r_1"][seg_slice] = self._calc_segment_points(seg, corner_spacing[:-1])
-        self._data["r_2"][seg_slice] = self._calc_segment_points(seg, corner_spacing[1:])
+        s_cp = cp_spacing[1:]
+        s_1 = corner_spacing[:-1]
+        s_2 = corner_spacing[1:]
+
+        self._data["spacing_cp"][seg_slice] = s_cp
+        self._data["spacing_1"][seg_slice] = s_1
+        self._data["spacing_2"][seg_slice] = s_2
+        self._data["r"][seg_slice] = self._calc_segment_points(seg, s_cp)
+        self._data["r_1"][seg_slice] = self._calc_segment_points(seg, s_1)
+        self._data["r_2"][seg_slice] = self._calc_segment_points(seg, s_2)
 
     @staticmethod
     def _cosine_spacing(num_sections, offset=0):
@@ -519,23 +564,28 @@ class LLGrid:
             left_chord = root_chord
             right_chord = tip_chord
 
-        r_1 = self._data["r_1"][seg_slice]
-        r_2 = self._data["r_2"][seg_slice]
-        c_1 = self._interp_accross_segment(left_chord, right_chord, r_1[0], r_2[-1], r_1)
-        c_2 = self._interp_accross_segment(left_chord, right_chord, r_1[0], r_2[-1], r_2)
+        c_1 = self._interp_accross_segment(seg_slice, left_chord, right_chord,
+                                           points="corner_1")
+        c_2 = self._interp_accross_segment(seg_slice, left_chord, right_chord,
+                                           points="corner_2")
 
         self._data["c_1"][seg_slice] = c_1
         self._data["c_2"][seg_slice] = c_2
 
-    @staticmethod
-    def _interp_accross_segment(val_left, val_right, left_pos, right_pos, points):
-        # linearly interpolates values accross wingsegment and returns and array of the
-        # resulting values at the given points
-        distances = np.linalg.norm(points-left_pos, axis=1)
-        slope = (val_right-val_left)/np.linalg.norm(right_pos-left_pos)
-        values = val_left + distances*slope
+    def _interp_accross_segment(self, seg_slice, val_left, val_right,
+                                points="control"):
+        # linearly interpolates values accross wingsegment and returns and
+        # array of the resulting values at the given points
+        if points == "control":
+            spacing = self._data["spacing_cp"][seg_slice]
+        elif points == "corner_1":
+            spacing = self._data["spacing_1"][seg_slice]
+        elif points == "corner_2":
+            spacing = self._data["spacing_2"][seg_slice]
 
-        return values
+        interpolated_values = val_left + spacing*(val_right - val_left)
+
+        return interpolated_values
 
     def _calc_area(self, seg, seg_slice):
         # calculates planform area of each section
@@ -552,9 +602,6 @@ class LLGrid:
     def _calc_washout(self, seg, seg_slice):
         # calculates the linear washout along the wing
         total_washout = seg.get_washout()
-        r_cp = self._data["r"][seg_slice]
-        left_tip = self._data["r_1"][seg_slice][0]
-        right_tip = self._data["r_2"][seg_slice][-1]
 
         side = seg.get_side()
         if side == "left":
@@ -564,14 +611,10 @@ class LLGrid:
             left_washout = 0.
             right_washout = total_washout
 
-        washout = self._interp_accross_segment(left_washout,
-                                               right_washout,
-                                               left_tip,
-                                               right_tip,
-                                               r_cp)
+        washout = self._interp_accross_segment(seg_slice, left_washout,
+                                               right_washout)
 
         self._data["washout"][seg_slice] = washout
-
 
     def _calc_unit_vectors(self, seg, seg_slice):
         # Calculates the axial, normal, and spanwise unit vectors for
@@ -584,6 +627,7 @@ class LLGrid:
         c_twist = np.cos(twist)
         s_dihedral = np.sin(dihedral)
         c_dihedral = np.cos(dihedral)
+
         normal = np.array([-s_twist,
                            -s_dihedral*c_twist,
                            -c_dihedral*c_twist]).T
@@ -601,17 +645,40 @@ class LLGrid:
 
     def _calc_coefficients(self, seg, seg_slice):
         # Calculates section airfoil properties
-        root_airfoil = seg.get_root_airfoil()
-        lift_slope = root_airfoil.get_lift_slope()
-        alpha_l0 = root_airfoil.get_zero_lift_alpha()
-        moment_slope = root_airfoil.get_moment_slope()
-        moment_l0 = root_airfoil.get_zero_lift_moment()
+        side = seg.get_side()
+        if side == "right":
+            left_airfoil, right_airfoil = seg.get_airfoils()
+        else:
+            right_airfoil, left_airfoil = seg.get_airfoils()
+        cla_left = left_airfoil.get_lift_slope()
+        al0_left = left_airfoil.get_zero_lift_alpha()
+        cma_left = left_airfoil.get_moment_slope()
+        cml0_left = left_airfoil.get_zero_lift_moment()
+        cla_right = right_airfoil.get_lift_slope()
+        al0_right = right_airfoil.get_zero_lift_alpha()
+        cma_right = right_airfoil.get_moment_slope()
+        cml0_right = right_airfoil.get_zero_lift_moment()
 
-        self._data["CL_a"][seg_slice] = lift_slope
-        self._data["alpha_L0"][seg_slice] = alpha_l0
-        self._data["Cm_a"][seg_slice] = moment_slope
-        self._data["Cm_L0"][seg_slice] = moment_l0
-
+        self._data["CL_a"][seg_slice] = self._interp_accross_segment(seg_slice,
+                                                                     cla_left,
+                                                                     cla_right)
+        self._data["CL_a_left"][seg_slice] = cla_left
+        self._data["CL_a_right"][seg_slice] = cla_right
+        self._data["alpha_L0"][seg_slice] = self._interp_accross_segment(seg_slice,
+                                                                         al0_left,
+                                                                         al0_right)
+        self._data["alpha_L0_left"][seg_slice] = al0_left
+        self._data["alpha_L0_right"][seg_slice] = al0_right
+        self._data["Cm_a"][seg_slice] = self._interp_accross_segment(seg_slice,
+                                                                     cma_left,
+                                                                     cma_right)
+        self._data["Cm_a_left"][seg_slice] = cma_left
+        self._data["Cm_a_right"][seg_slice] = cma_right
+        self._data["Cm_L0"][seg_slice] = self._interp_accross_segment(seg_slice,
+                                                                      cml0_left,
+                                                                      cml0_right)
+        self._data["Cm_L0_left"][seg_slice] = cml0_left
+        self._data["Cm_L0_right"][seg_slice] = cml0_right
 
     def _calc_control_surfaces(self, seg, seg_slice):
         # Sets up arrays that describe control surface properties
@@ -689,6 +756,16 @@ class LLGrid:
         """
         return self._data["r_1"], self._data["r_2"]
 
+    def get_cp_spacing(self):
+        """Get the spacing of the control points along the segment span.
+
+        Returns
+        -------
+        numpy array
+
+        """
+        return self._data["spacing_cp"]
+
     def get_lift_slopes(self):
         """Get linearly interpolated lift slopes at each wing section.
 
@@ -699,6 +776,28 @@ class LLGrid:
 
         """
         return self._data["CL_a"]
+
+    def get_left_lift_slopes(self):
+        """Get left airfoil liftslope of segment that section lays on.
+
+        Returns
+        -------
+        numpy array
+            Array of left airfoil lift slopes for each section.
+
+        """
+        return self._data["CL_a_left"]
+
+    def get_right_lift_slopes(self):
+        """Get right airfoil liftslope of segment that section lays on.
+
+        Returns
+        -------
+        numpy array
+            Array of right airfoil lift slopes for each section.
+
+        """
+        return self._data["CL_a_right"]
 
     def get_moment_slopes(self):
         """Get linearly interpolated moment slopes at each wing section.
@@ -711,6 +810,50 @@ class LLGrid:
 
         """
         return self._data["Cm_a"], self._data["Cm_L0"], self._data["Cm_d"]
+
+    def get_left_moment_slopes(self):
+        """Get left airfoil moment slopes at each wing section.
+
+        Returns
+        -------
+        numpy array
+            Array of left airfoil moment coefficient slopes at each section.
+
+        """
+        return self._data["Cm_a_left"]
+
+    def get_right_moment_slopes(self):
+        """Get right airfoil moment slopes at each wing section.
+
+        Returns
+        -------
+        numpy array
+            Array of right airfoil moment coefficient slopes at each section.
+
+        """
+        return self._data["Cm_a_right"]
+
+    def get_left_zero_lift_moments(self):
+        """Get left airfoil zero-lift moments at each wing section.
+
+        Returns
+        -------
+        numpy array
+            Array of left airfoil zero-lift moment coefficients.
+
+        """
+        return self._data["Cm_L0_left"]
+
+    def get_right_zero_lift_moments(self):
+        """Get right airfoil zero-lift moments at each wing section.
+
+        Returns
+        -------
+        numpy array
+            Array of right airfoil zero-lift moment coefficients.
+
+        """
+        return self._data["Cm_L0_right"]
 
     def get_chord_lengths(self):
         """Get linearly interpolated chord lengths of each wing section.
@@ -790,6 +933,30 @@ class LLGrid:
 
         """
         return self._data["alpha_L0"]
+
+    def get_left_zero_lift_alpha(self):
+        """Get the left airfoil zero-lift angle of attack for each wing section.
+
+        Returns
+        -------
+        numpy array
+            Array holding the left airfoil zero-lift angle of attack for each
+            section.
+
+        """
+        return self._data["alpha_L0_left"]
+
+    def get_right_zero_lift_alpha(self):
+        """Get the right airfoil zero-lift angle of attack for each wing section.
+
+        Returns
+        -------
+        numpy array
+            Array holding the right airfoil zero-lift angle of attack for each
+            section.
+
+        """
+        return self._data["alpha_L0_right"]
 
     def get_control_mix(self):
         """Get the control surface mixing parameters for each wing section.
