@@ -279,6 +279,7 @@ class WingSegment:
         self._name = name
         self._root_loc = np.array([0., 0., 0.])
         self._dimensions = {
+            "yoffset": 0.,
             "side": "right",
             "span": 4.,
             "root_chord": 1.,
@@ -308,6 +309,7 @@ class WingSegment:
         self._root_loc[0] = wing_dict["connect"]["dx"]
         self._root_loc[1] = wing_dict["connect"]["dy"]
         self._root_loc[2] = wing_dict["connect"]["dz"]
+        self._dimensions["yoffset"] = wing_dict["connect"]["yoffset"]
         self._dimensions["side"] = wing_dict["side"]
         self._dimensions["span"] = wing_dict["span"]
         self._dimensions["root_chord"] = wing_dict["root_chord"]
@@ -408,7 +410,10 @@ class WingSegment:
 
                 left_pos[0] -= span*np.sin(sweep)/np.cos(sweep)
                 left_pos[1] -= span*np.cos(dihedral)
+                left_pos[1] -= self._dimensions["yoffset"]
                 left_pos[2] -= span*np.sin(dihedral)
+            else:
+                left_pos[1] += self._dimensions["yoffset"]
 
             return left_pos
         elif side == "right":
@@ -421,7 +426,10 @@ class WingSegment:
 
                 right_pos[0] -= span*np.sin(sweep)/np.cos(sweep)
                 right_pos[1] += span*np.cos(dihedral)
+                right_pos[1] += self._dimensions["yoffset"]
                 right_pos[2] -= span*np.sin(dihedral)
+            else:
+                right_pos[1] -= self._dimensions["yoffset"]
 
             return right_pos
         else:

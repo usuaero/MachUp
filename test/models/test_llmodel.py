@@ -148,6 +148,24 @@ def aero_twist_wing_model():
     return model
 
 
+@pytest.fixture
+def yoffset_wing_grid():
+    """Get a LLGrid from the yoffset wing example."""
+    filename = PLANE_DIR+"yoffset_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    grid = mod.LLGrid(plane)
+    return grid
+
+
+@pytest.fixture
+def yoffset_wing_model():
+    """Get a LLModel from the yoffset wing example."""
+    filename = PLANE_DIR+"yoffset_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    model = mod.LLModel(plane)
+    return model
+
+
 def test_linear_solver_forces(small_wing_model):
     results = small_wing_model.solve(stype="linear")
     machup = np.array([-1.31741502082177E-003,
@@ -700,6 +718,46 @@ def test_linear_solver_aero_twist(aero_twist_wing_model):
     assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
 
 
+def test_linear_solver_yoffset(yoffset_wing_model):
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 0.,
+        "beta": 0.,
+        "rho": 1.
+    }
+    results = yoffset_wing_model.solve(stype="linear",
+                                       aero_state=aero_state)
+
+    test = np.array([-1.69234613071813E-003,
+                     0.00000000000000E+000,
+                     -1.51576434068321E-001,
+                     0.00000000000000E+000,
+                     8.92791526871623E-003,
+                     5.42101086242752E-020])
+
+    if not COMPARING_WITH_MACHUP:
+        test[0] = -0.0016923461307181294
+        test[1] = 0.0000000000000000
+        test[2] = -0.15157643406832139
+        test[3] = 0.0000000000000000
+        test[4] = 0.0089185193285999398
+        test[5] = 0.0000000000000000
+
+    r_x = results["FX"]/(0.5*100.*8.)
+    r_y = results["FY"]/(0.5*100.*8.)
+    r_z = results["FZ"]/(0.5*100.*8.)
+    r_l = results["l"]/(0.5*100.*8.*8.)
+    r_m = results["m"]/(0.5*100.*8.*1.)
+    r_n = results["n"]/(0.5*100.*8.*8.)
+
+    assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_z, test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_l, test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_m, test[4], rtol=0., atol=1e-11) is True
+    assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
+
+
 def test_get_grid_position(single_wing_grid):
     # get vortex positions from grid
     r_pos = single_wing_grid.get_control_point_pos()
@@ -887,6 +945,24 @@ def test_grid_vertical_normals(vertical_wing_grid):
     assert np.allclose(test_a, unit_a, rtol=0., atol=1e-13) is True
     assert np.allclose(test_n, unit_n, rtol=0., atol=1e-13) is True
     assert np.allclose(test_s, unit_s, rtol=0., atol=1e-13) is True
+
+
+def test_grid_yoffset(yoffset_wing_grid):
+    r_cp = yoffset_wing_grid.get_control_point_pos()
+
+    test = np.zeros((10, 3))
+    test[:, 1] = [-4.402113032590307284e+00,
+                  -3.675570504584945830e+00,
+                  -2.500000000000000000e+00,
+                  -1.324429495415053726e+00,
+                  -5.978869674096929376e-01,
+                  5.978869674096929376e-01,
+                  1.324429495415053726e+00,
+                  2.500000000000000000e+00,
+                  3.675570504584945830e+00,
+                  4.402113032590307284e+00]
+
+    assert np.allclose(r_cp, test, rtol=0., atol=1e-13) is True
 
 
 def test_grid_flap_effectiveness(small_wing_grid):
