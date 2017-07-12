@@ -395,21 +395,26 @@ class LLModel:
             al0_left = self._grid.get_left_zero_lift_alpha()
             al0_right = self._grid.get_right_zero_lift_alpha()
 
-            cm_left = cml0_left+cma_left*(alpha-al0_left)+delta_c*cm_d
-            cm_right = cml0_right+cma_right*(alpha-al0_right)+delta_c*cm_d
-            c_m = cm_left + spacing*(cm_right - cm_left)
+            cm_left = cml0_left+cma_left*(alpha-al0_left)
+            cm_right = cml0_right+cma_right*(alpha-al0_right)
+            c_m = cm_left + spacing*(cm_right - cm_left) + delta_c*cm_d
         else:
             c_m = cm_l0 + cm_a*(alpha - alpha_l0) + delta_c*cm_d
 
         return c_m
 
     def _integral_chord2(self):
-        # Computes the integral of the chord squared along the span
+        # Computes the integral of the chord squared along the spanwise
+        # direction
         r_1, r_2 = self._grid.get_corner_point_pos()
+        u_s = self._grid.get_unit_spanwise_vectors()
         c_1, c_2 = self._grid.get_chord_lengths()
 
-        int_chord2 = (np.linalg.norm((r_2-r_1), axis=1) *
-                      (c_2*c_2+c_1*c_2+c_1*c_1)/3.)
+        delta_l = r_2-r_1
+        delta_s = np.abs(np.sum(u_s*delta_l, axis=1))
+        int_chord2 = (delta_s*(c_2*c_2+c_1*c_2+c_1*c_1)/3.)
+
+        np.savetxt("int_chord2",int_chord2)
 
         return int_chord2
 
@@ -696,6 +701,7 @@ class LLGrid:
             spacing = self._cosine_spacing(num_sections, 0.5)[1:]
         else:
             spacing = self._linear_spacing(num_sections, 0.5)[1:]
+
         surf_start, surf_end = seg.get_control_surface_span()
         chord_start = seg.get_control_surface_chord()[0]
         m_a, m_e, m_r = seg.get_control_mix()

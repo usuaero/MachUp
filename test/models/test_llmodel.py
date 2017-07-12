@@ -122,6 +122,15 @@ def tapered_wing_grid():
 
 
 @pytest.fixture
+def dihedral_sweep_wing_model():
+    """Get a LLModel from the dihedral_sweep_wing.json example."""
+    filename = PLANE_DIR+"dihedral_sweep_wing.json"
+    plane = geom.Airplane(inputfile=filename)
+    model = mod.LLModel(plane)
+    return model
+
+
+@pytest.fixture
 def washout_wing_model():
     """Get a LLModel from the washout_wing_5sect.json example."""
     filename = PLANE_DIR+"washout_wing_5sect.json"
@@ -161,6 +170,15 @@ def yoffset_wing_grid():
 def yoffset_wing_model():
     """Get a LLModel from the yoffset wing example."""
     filename = PLANE_DIR+"yoffset_wing_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    model = mod.LLModel(plane)
+    return model
+
+
+@pytest.fixture
+def v2_plane_model():
+    """Get a LLModel from the test plane v2 example."""
+    filename = PLANE_DIR+"test_plane_v2.json"
     plane = geom.Airplane(inputfile=filename)
     model = mod.LLModel(plane)
     return model
@@ -262,6 +280,28 @@ def test_linear_solver_aileron(small_wing_model):
     assert np.allclose(results["l"], test[3], rtol=0., atol=1e-12) is True
     assert np.allclose(results["m"], test[4], rtol=0., atol=1e-12) is True
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
+
+
+def test_integral_of_chord_squared(dihedral_sweep_wing_model):
+    controls = {
+        "aileron": 10.,
+        "elevator": 0.,
+        "rudder": 0.
+    }
+    int_chord2 = dihedral_sweep_wing_model._integral_chord2()
+
+    test = np.array([3.819660112501050975e-01,
+                     1.000000000000000000e+00,
+                     1.236067977499789805e+00,
+                     1.000000000000000000e+00,
+                     3.819660112501050975e-01,
+                     3.819660112501050975e-01,
+                     1.000000000000000000e+00,
+                     1.236067977499789805e+00,
+                     1.000000000000000000e+00,
+                     3.819660112501050975e-01])
+
+    assert np.allclose(int_chord2, test, rtol=0., atol=1e-12) is True
 
 
 def test_linear_solver_elevon(small_wing_model):
@@ -425,7 +465,7 @@ def test_linear_solver_beta(small_wing_model):
     assert np.allclose(results["FD"], test[7], rtol=0., atol=1e-12) is True
 
 
-def test_linear_solver_plane(small_plane_model):
+def test_linear_solver_planeV1(small_plane_model):
     controls = {
         "aileron": 0.,
         "elevator": 0.,
@@ -467,7 +507,7 @@ def test_linear_solver_plane(small_plane_model):
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
 
 
-def test_linear_solver_plane_2(small_plane_model):
+def test_linear_solver_planeV1_2(small_plane_model):
     controls = {
         "aileron": -4.,
         "elevator": 2.,
@@ -507,6 +547,95 @@ def test_linear_solver_plane_2(small_plane_model):
     assert np.allclose(results["l"], test[3], rtol=0., atol=1e-12) is True
     assert np.allclose(results["m"], test[4], rtol=0., atol=1e-12) is True
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
+
+
+def test_linear_solver_planeV2(v2_plane_model):
+    controls = {
+        "aileron": 0.,
+        "elevator": 0.,
+        "rudder": 0.,
+    }
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 5.,
+        "beta": 3.,
+        "rho": 1.
+    }
+    results = v2_plane_model.solve(stype="linear",
+                                   aero_state=aero_state,
+                                   control_state=controls)
+
+    test = np.array([1.66324304012235E-002,
+                     -3.02789067480966E-002,
+                     -3.90971849920270E-001,
+                     -6.64426829451582E-004,
+                     -1.11987165095428E-002,
+                     9.81477277257450E-003])
+
+    test[:] *= 0.5*100.*430.33
+    test[3] *= 37.42
+    test[4] *= 11.5
+    test[5] *= 37.42
+    if not COMPARING_WITH_MACHUP:
+        test[0] = 357.94075831126707
+        test[1] = -649.63680011889164
+        test[2] = -8398.5507476769344
+        test[3] = -525.35227169801283
+        test[4] = -2695.3836726371997
+        test[5] = 7880.4532971882736
+
+    assert np.allclose(results["FX"], test[0], rtol=0., atol=1e-10) is True
+    assert np.allclose(results["FY"], test[1], rtol=0., atol=1e-10) is True
+    assert np.allclose(results["FZ"], test[2], rtol=0., atol=1e-10) is True
+    assert np.allclose(results["l"], test[3], rtol=0., atol=1e-10) is True
+    assert np.allclose(results["m"], test[4], rtol=0., atol=1e-10) is True
+    assert np.allclose(results["n"], test[5], rtol=0., atol=1e-10) is True
+
+
+def test_linear_solver_planeV2_2(v2_plane_model):
+    controls = {
+        "aileron": -4.,
+        "elevator": 2.,
+        "rudder": -2.,
+    }
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 5.,
+        "beta": 3.,
+        "rho": 1.
+    }
+    results = v2_plane_model.solve(stype="linear",
+                                   aero_state=aero_state,
+                                   control_state=controls)
+
+    test = np.array([1.59681145902187E-002,
+                     -3.67421278805487E-002,
+                     -3.99215952806924E-001,
+                     8.29015070213223E-003,
+                     -2.36727505444233E-002,
+                     1.17910303897534E-002])
+
+    if not COMPARING_WITH_MACHUP:
+        test[0] = 0.015974097378399534
+        test[1] = -0.036656488116542811
+        test[2] = -0.39857493418178064
+        test[3] = 0.0083018123459460847
+        test[4] = -0.023381882886120434
+        test[5] = 0.011794827810495723
+
+    r_x = results["FX"]/(0.5*100.*430.33)
+    r_y = results["FY"]/(0.5*100.*430.33)
+    r_z = results["FZ"]/(0.5*100.*430.33)
+    r_l = results["l"]/(0.5*100.*430.33*37.42)
+    r_m = results["m"]/(0.5*100.*430.33*11.5)
+    r_n = results["n"]/(0.5*100.*430.33*37.42)
+
+    assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_z, test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_l, test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_m, test[4], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
 
 
 def test_linear_solver_v_stab(vertical_wing_model):
