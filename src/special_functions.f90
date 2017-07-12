@@ -712,7 +712,7 @@ subroutine sf_target_CL(t,json_command)
     type(json_value),intent(in),pointer :: json_command
     character(len=:),allocatable :: cval
     real :: CL_target,alpha_temp
-    real :: delta,relaxation,alpha,maxres,residual,ans1,ans2,gradient
+    real :: delta,relaxation,maxres,residual,ans1,ans2,gradient
     integer :: iter,maxiter
     type(json_value),pointer    :: p_root
     character(100) :: filename
@@ -745,7 +745,7 @@ subroutine sf_target_CL(t,json_command)
     write(*,*)
     write(*,*) '   alpha[deg]                CL                        CL_Residual'
     call sf_target_CL_residual(t,CL_target,residual)
-    write(*,*) alpha*180.0/pi,t%GL(t%nrealwings+1,3), residual
+    write(*,*) t%alpha*180.0/pi,t%GL(t%nrealwings+1,3), residual
 #else
     write(*,*) '                   convergence = ',maxres
 
@@ -769,7 +769,7 @@ subroutine sf_target_CL(t,json_command)
         t%alpha = t%alpha - relaxation*residual/gradient
 
         call sf_target_CL_residual(t,CL_target,residual)
-        write(*,*) alpha*180.0/pi, t%GL(t%nrealwings+1,3), residual
+        write(*,*) t%alpha*180.0/pi, t%GL(t%nrealwings+1,3), residual
 #else
         t%alpha = t%alpha + (CL_target - t%GL(t%nrealwings+1, 3)) / t%GL(t%nrealwings+1, 3)%dx(1)
         t%alpha%dx(1) = t%GL(t%nrealwings+1, 3)%dx(1) / t%GL(t%nrealwings+1, 3)%dx(1)
