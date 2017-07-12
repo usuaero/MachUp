@@ -347,7 +347,10 @@ class WingSegment:
         if "elevator" in control_dict["mix"]:
             self._control_data["mix_elevator"] = mix_dict["elevator"]
         if "rudder" in control_dict["mix"]:
-            self._control_data["mix_rudder"] = mix_dict["rudder"]
+            if wing_dict["side"] == "right":
+                self._control_data["mix_rudder"] = mix_dict["rudder"]
+            else:
+                self._control_data["mix_rudder"] = -mix_dict["rudder"]
         self._control_data["is_sealed"] = control_dict["is_sealed"]
 
     def get_airfoils(self):
