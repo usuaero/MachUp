@@ -167,6 +167,15 @@ def yoffset_wing_grid():
 
 
 @pytest.fixture
+def tapered_control_surface_model():
+    """Get a LLModel from the tapered controls example."""
+    filename = PLANE_DIR+"tapered_control_5sect.json"
+    plane = geom.Airplane(inputfile=filename)
+    model = mod.LLModel(plane)
+    return model
+
+
+@pytest.fixture
 def yoffset_wing_model():
     """Get a LLModel from the yoffset wing example."""
     filename = PLANE_DIR+"yoffset_wing_5sect.json"
@@ -960,6 +969,48 @@ def test_roll_rate_velocities(small_wing_model):
     assert np.allclose(v_local, test, rtol=0., atol=1e-14) is True
 
 
+def test_linear_solver_tapered_controls(tapered_control_surface_model):
+    controls = {
+        "aileron": 5.,
+        "elevator": 0.,
+        "rudder": 0.
+    }
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 0.,
+        "beta": 0.,
+        "rho": 1.
+    }
+    results = tapered_control_surface_model.solve(stype="linear",
+                                                  aero_state=aero_state,
+                                                  control_state=controls)
+
+    test = np.array([-3.93879262490376E-003,
+                     0.00000000000000E+000,
+                     -1.75579916601760E-001,
+                     -3.93486689403467E-002,
+                     1.86556083110728E-002,
+                     8.93138706195071E-004])
+
+    test[:] *= 0.5*100.*8.
+    test[3] *= 8.
+    test[5] *= 8.
+    if not COMPARING_WITH_MACHUP:
+        test[0] = -1.5755170499615059
+        test[1] = 0.
+        test[2] = -70.231966640704186
+        test[3] = -125.91574060910946
+        test[4] = 7.450550489412648
+        test[5] = 2.8580438598242295
+
+    assert np.allclose(results["FX"], test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["FY"], test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["FZ"], test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["l"], test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["m"], test[4], rtol=0., atol=1e-12) is True
+    assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
+
+
 def test_get_grid_position(single_wing_grid):
     # get vortex positions from grid
     r_pos = single_wing_grid.get_control_point_pos()
@@ -1181,11 +1232,11 @@ def test_grid_get_control_mixing(small_wing_grid):
     m_a, m_e, m_r = small_wing_grid.get_control_mix()
 
     test_a = np.zeros(10)
-    test_a[1] = -1.
-    test_a[8] = 1.
+    test_a[:5] = -1.
+    test_a[5:] = 1.
     test_e = np.zeros(10)
-    test_e[1] = 1.
-    test_e[8] = 1.
+    test_e[:5] = 1.
+    test_e[5:] = 1.
     test_r = np.zeros(10)
 
     assert np.allclose(test_a, m_a, rtol=0., atol=1e-13) is True

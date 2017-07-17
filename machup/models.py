@@ -711,43 +711,46 @@ class LLGrid:
         # I know this is pretty messy as it currently stands but it is
         # all going to get rewritten anyway in the next version.
         # pylint: disable=too-many-locals
+        self._calc_control_mixing(seg, seg_slice)
         flap_eff = self._data['flap_eff'][seg_slice]
-        mixing_a = self._data['mixing_a'][seg_slice]
-        mixing_e = self._data['mixing_e'][seg_slice]
-        mixing_r = self._data['mixing_r'][seg_slice]
         cm_d = self._data['Cm_d'][seg_slice]
+        spacing = self._data["spacing_cp"][seg_slice]
 
         num_sections = seg.get_num_sections()
-        if self._uses_cosine_spacing:
-            spacing = self._cosine_spacing(num_sections, 0.5)[1:]
-        else:
-            spacing = self._linear_spacing(num_sections, 0.5)[1:]
-
         surf_start, surf_end = seg.get_control_surface_span()
-        chord_start = seg.get_control_surface_chord()[0]
-        m_a, m_e, m_r = seg.get_control_mix()
+        chord_start, chord_end = seg.get_control_surface_chord()
         sealed = seg.is_control_surface_sealed()
+
+        control_chord_slope = (chord_end-chord_start)/(surf_end-surf_start)
+        cf_c = (spacing-surf_start)*control_chord_slope+chord_start
 
         for i in range(num_sections):
             # if control point is covered by control surface, then
             # set mixing parameters.
-            if ((spacing[i] > surf_start) and
-                    (spacing[i] < surf_end)):
+            if ((spacing[i] > surf_start) and (spacing[i] < surf_end)):
                 # pylint: disable=no-member
-                mixing_a[i] = m_a
-                mixing_e[i] = m_e
-                mixing_r[i] = m_r
-                cf_c = chord_start
-                theta_f = np.arccos(2.*cf_c - 1.)
+                # cf_c = chord_start
+                theta_f = np.arccos(2.*cf_c[i] - 1.)
                 eps_f = 1. - (theta_f - np.sin(theta_f))/np.pi
                 # the following is a curve fit of Fig. 1.7.4 in
                 # Phillip's book
-                eta_h = 3.9598*np.arctan((cf_c+0.006527) *
+                eta_h = 3.9598*np.arctan((cf_c[i]+0.006527) *
                                          89.2574+4.898015)-5.18786
                 if not sealed:
                     eta_h *= 0.8
                 flap_eff[i] = eta_h*eps_f
                 cm_d[i] = (np.sin(2.*theta_f)-2.*np.sin(theta_f))/4.
+
+    def _calc_control_mixing(self, seg, seg_slice):
+        mixing_a = self._data['mixing_a'][seg_slice]
+        mixing_e = self._data['mixing_e'][seg_slice]
+        mixing_r = self._data['mixing_r'][seg_slice]
+
+        m_a, m_e, m_r = seg.get_control_mix()
+
+        mixing_a[:] = m_a
+        mixing_e[:] = m_e
+        mixing_r[:] = m_r
 
     def get_cg_location(self):
         """Get the location of the aircraft center of gravity.
