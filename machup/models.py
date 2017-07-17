@@ -87,7 +87,10 @@ class LLModel:
         self._aero_data = {
             'v_loc': np.zeros((self._num_vortices, 3)),
             'u_inf': np.zeros(3),
-            'rho': 1.
+            'rho': 1.,
+            'roll_rate': 0.,
+            'pitch_rate': 0.,
+            'yaw_rate': 0.,
         }
         self._control_data = {
             'delta_flap': np.zeros(self._num_vortices),
@@ -127,6 +130,8 @@ class LLModel:
             v_xyz[2] *= -s_a*c_b
             v_local[:] = v_xyz
             u_inf[:] = (v_xyz/np.linalg.norm(v_xyz))
+            if 'roll_rate' in state:
+                self._superimpose_rotation(state)
 
             self._aero_data["rho"] = state["rho"]
 
@@ -134,6 +139,22 @@ class LLModel:
             # assume uniform flow in -x direction for now
             v_local[:, 0] = -10.
             u_inf[0] = -1.
+
+    def _superimpose_rotation(self, state):
+        # Calculate velocities due to rotation and superimpose them
+        # on the freestream velocities
+        r_rate = self._aero_data["roll_rate"] = state["roll_rate"]
+        p_rate = self._aero_data["pitch_rate"] = state["pitch_rate"]
+        y_rate = self._aero_data["yaw_rate"] = state["yaw_rate"]
+
+        rotation = np.array([r_rate, p_rate, y_rate])
+        r_cp = self._grid.get_control_point_pos()
+        r_cg = self._grid.get_cg_location()
+        v_local = self._aero_data["v_loc"]
+
+        r_cp_cg = r_cp - r_cg
+        v_rot = -np.cross(rotation, r_cp_cg)
+        v_local += v_rot
 
     def _process_control_state(self, state):
         # Takes state data from state and constructs necessary arrays

@@ -887,6 +887,79 @@ def test_linear_solver_yoffset(yoffset_wing_model):
     assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
 
 
+def test_linear_solver_roll_rate(small_wing_model):
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 0.,
+        "beta": 0.,
+        "rho": 1.,
+        "roll_rate": 0.1,
+        "pitch_rate": 0.0,
+        "yaw_rate": 0.0
+    }
+    results = small_wing_model.solve(stype="linear",
+                                     aero_state=aero_state)
+
+    test = np.array([-0.00017422282851392923,
+                     0.00000000000000E+000,
+                     -0.17562015983742105,
+                     -0.023501253162496294,
+                     0.018643763169761726,
+                     -0.00035428728093468378])
+
+    if not COMPARING_WITH_MACHUP:
+        test[0] = -0.00017425831108772841
+        test[1] = 0.00000000000000E+000
+        test[2] = -0.17562015983742105
+        test[3] = -0.023497862298498234
+        test[4] = 0.018656810096338853
+        test[5] = -0.00035439363246730227
+
+    r_x = results["FX"]/(0.5*100.*8.)
+    r_y = results["FY"]/(0.5*100.*8.)
+    r_z = results["FZ"]/(0.5*100.*8.)
+    r_l = results["l"]/(0.5*100.*8.*8.)
+    r_m = results["m"]/(0.5*100.*8.*1.)
+    r_n = results["n"]/(0.5*100.*8.*8.)
+
+    assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_z, test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_l, test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_m, test[4], rtol=0., atol=1e-12) is True
+    assert np.allclose(r_n, test[5], rtol=0., atol=1e-12) is True
+
+
+def test_roll_rate_velocities(small_wing_model):
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 0.,
+        "beta": 0.,
+        "rho": 1.,
+        "roll_rate": 0.1,
+        "pitch_rate": 0.0,
+        "yaw_rate": 0.0
+    }
+    results = small_wing_model.solve(stype="linear",
+                                     aero_state=aero_state)
+    v_local = small_wing_model._aero_data["v_loc"]
+
+    test = np.zeros((10, 3))
+    test[:, 0] = -10.
+    test[:, 2] = np.array([0.390211303259031,
+                           0.317557050458495,
+                           0.200000000000000,
+                           0.082442949541505,
+                           0.009788696740969,
+                           -0.009788696740969,
+                           -0.082442949541505,
+                           -0.200000000000000,
+                           -0.317557050458495,
+                           -0.390211303259031])
+
+    assert np.allclose(v_local, test, rtol=0., atol=1e-14) is True
+
+
 def test_get_grid_position(single_wing_grid):
     # get vortex positions from grid
     r_pos = single_wing_grid.get_control_point_pos()
