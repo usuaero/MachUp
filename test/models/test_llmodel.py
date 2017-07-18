@@ -611,7 +611,7 @@ def test_linear_solver_planeV2_2(v2_plane_model):
         "V_mag": 10.,
         "alpha": 5.,
         "beta": 3.,
-        "rho": 1.
+        "rho": 1.25
     }
     results = v2_plane_model.solve(stype="linear",
                                    aero_state=aero_state,
@@ -632,12 +632,12 @@ def test_linear_solver_planeV2_2(v2_plane_model):
         test[4] = -0.023381882886120434
         test[5] = 0.011794827810495723
 
-    r_x = results["FX"]/(0.5*100.*430.33)
-    r_y = results["FY"]/(0.5*100.*430.33)
-    r_z = results["FZ"]/(0.5*100.*430.33)
-    r_l = results["l"]/(0.5*100.*430.33*37.42)
-    r_m = results["m"]/(0.5*100.*430.33*11.5)
-    r_n = results["n"]/(0.5*100.*430.33*37.42)
+    r_x = results["FX"]/(0.5*1.25*100.*430.33)
+    r_y = results["FY"]/(0.5*1.25*100.*430.33)
+    r_z = results["FZ"]/(0.5*1.25*100.*430.33)
+    r_l = results["l"]/(0.5*1.25*100.*430.33*37.42)
+    r_m = results["m"]/(0.5*1.25*100.*430.33*11.5)
+    r_n = results["n"]/(0.5*1.25*100.*430.33*37.42)
 
     assert np.allclose(r_x, test[0], rtol=0., atol=1e-12) is True
     assert np.allclose(r_y, test[1], rtol=0., atol=1e-12) is True
@@ -1009,6 +1009,33 @@ def test_linear_solver_tapered_controls(tapered_control_surface_model):
     assert np.allclose(results["l"], test[3], rtol=0., atol=1e-12) is True
     assert np.allclose(results["m"], test[4], rtol=0., atol=1e-12) is True
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
+
+
+def test_local_velocity_input(small_wing_model):
+    local_state = np.array([[1.00, -10.2, 0.00, -0.30],
+                           [1.05, -10.6, 0.02, -0.32],
+                           [1.12, -10.1, 0.02, -0.32],
+                           [1.30, -10.2, 0.04, -0.33],
+                           [1.01, -10.3, 0.02, -0.31],
+                           [1.04, -10.3, 0.02, -0.31],
+                           [1.02, -10.6, 0.01, -0.31],
+                           [1.05, -10.6, 0.05, -0.34],
+                           [1.15, -10.3, 0.02, -0.32],
+                           [1.05, -10.4, 0.02, -0.32]])
+
+    aero_state = {
+        "local_state": local_state
+    }
+    small_wing_model.solve(stype='linear', aero_state=aero_state)
+
+    v_loc = small_wing_model._aero_data["v_loc"]
+    rho_loc = small_wing_model._aero_data["rho_loc"]
+    u_mean = small_wing_model._aero_data["u_inf"]
+    u_test = [-0.999526990162502, 0.002122547662507, -0.03068046166715]
+
+    assert np.allclose(v_loc, local_state[:, 1:], rtol=0., atol=1e-12) is True
+    assert np.allclose(rho_loc, local_state[:, 0], rtol=0., atol=1e-12) is True
+    assert np.allclose(u_mean, u_test, rtol=0., atol=1e-12) is True
 
 
 def test_get_grid_position(single_wing_grid):

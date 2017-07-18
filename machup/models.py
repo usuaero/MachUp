@@ -87,7 +87,7 @@ class LLModel:
         self._aero_data = {
             'v_loc': np.zeros((self._num_vortices, 3)),
             'u_inf': np.zeros(3),
-            'rho': 1.,
+            'rho_loc': np.ones(self._num_vortices),
             'roll_rate': 0.,
             'pitch_rate': 0.,
             'yaw_rate': 0.,
@@ -118,22 +118,29 @@ class LLModel:
         # Takes state data from state and constructs necessary arrays
         v_local = self._aero_data["v_loc"]
         u_inf = self._aero_data["u_inf"]
+        rho_local = self._aero_data["rho_loc"]
         if state:
-            v_xyz = np.zeros(3)
-            c_a = np.cos(state["alpha"]*np.pi/180.)
-            s_a = np.sin(state["alpha"]*np.pi/180.)
-            c_b = np.cos(state["beta"]*np.pi/180.)
-            s_b = np.sin(state["beta"]*np.pi/180.)
-            v_xyz[:] = state["V_mag"]/np.sqrt(1.-s_a*s_a*s_b*s_b)
-            v_xyz[0] *= -c_a*c_b
-            v_xyz[1] *= -c_a*s_b
-            v_xyz[2] *= -s_a*c_b
-            v_local[:] = v_xyz
-            u_inf[:] = (v_xyz/np.linalg.norm(v_xyz))
+            if "local_state" in state:
+                v_local[:] = state["local_state"][:, 1:]
+                rho_local[:] = state["local_state"][:, 0]
+                v_mean = np.mean(v_local, axis=0)
+                u_inf[:] = v_mean/np.linalg.norm(v_mean)
+            else:
+                v_xyz = np.zeros(3)
+                c_a = np.cos(state["alpha"]*np.pi/180.)
+                s_a = np.sin(state["alpha"]*np.pi/180.)
+                c_b = np.cos(state["beta"]*np.pi/180.)
+                s_b = np.sin(state["beta"]*np.pi/180.)
+                v_xyz[:] = state["V_mag"]/np.sqrt(1.-s_a*s_a*s_b*s_b)
+                v_xyz[0] *= -c_a*c_b
+                v_xyz[1] *= -c_a*s_b
+                v_xyz[2] *= -s_a*c_b
+                v_local[:] = v_xyz
+                u_inf[:] = (v_xyz/np.linalg.norm(v_xyz))
+                rho_local[:] = state["rho"]
+
             if 'roll_rate' in state:
                 self._superimpose_rotation(state)
-
-            self._aero_data["rho"] = state["rho"]
 
         else:
             # assume uniform flow in -x direction for now
@@ -348,14 +355,14 @@ class LLModel:
 
     def _compute_forces(self):
         # Computes the aerodynamic force at each control point.
-        rho = self._aero_data["rho"]
+        rho = self._aero_data["rho_loc"]
         gamma = self._gamma
         u_inf = self._aero_data["u_inf"]
         r_1, r_2 = self._grid.get_corner_point_pos()
         delta_l = r_2 - r_1
         v_i = self._v_i
 
-        self._forces = rho*gamma[:, None]*np.cross(v_i, delta_l)
+        self._forces = rho[:, None]*gamma[:, None]*np.cross(v_i, delta_l)
         force_total = np.sum(self._forces, axis=0)
 
         drag = np.dot(force_total, u_inf)
@@ -369,7 +376,7 @@ class LLModel:
 
     def _compute_moments(self):
         # Computes the aerodynamic moment at each control point.
-        rho = self._aero_data["rho"]
+        rho = self._aero_data["rho_loc"]
         r_cp = self._grid.get_control_point_pos()
         u_s = self._grid.get_unit_spanwise_vectors()
         v_i = self._v_i
