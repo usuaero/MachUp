@@ -122,12 +122,12 @@ def tapered_wing_grid():
 
 
 @pytest.fixture
-def dihedral_sweep_wing_model():
-    """Get a LLModel from the dihedral_sweep_wing.json example."""
+def dihedral_sweep_wing_grid():
+    """Get a LLGrid from the dihedral_sweep_wing.json example."""
     filename = PLANE_DIR+"dihedral_sweep_wing.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
-    return model
+    grid = mod.LLGrid(plane)
+    return grid
 
 
 @pytest.fixture
@@ -291,13 +291,13 @@ def test_linear_solver_aileron(small_wing_model):
     assert np.allclose(results["n"], test[5], rtol=0., atol=1e-12) is True
 
 
-def test_integral_of_chord_squared(dihedral_sweep_wing_model):
+def test_integral_of_chord_squared(dihedral_sweep_wing_grid):
     controls = {
         "aileron": 10.,
         "elevator": 0.,
         "rudder": 0.
     }
-    int_chord2 = dihedral_sweep_wing_model._integral_chord2()
+    int_chord2 = dihedral_sweep_wing_grid.get_integral_chord2()
 
     test = np.array([3.819660112501050975e-01,
                      1.000000000000000000e+00,

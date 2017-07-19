@@ -382,7 +382,7 @@ class LLModel:
         v_i = self._v_i
         cg_location = self._grid.get_cg_location()
         force = self._forces
-        int_chord2 = self._integral_chord2()
+        int_chord2 = self._grid.get_integral_chord2()
         c_m = self._local_moment_coefficient(v_i)
 
         v_i_mag = np.linalg.norm(v_i, axis=1)
@@ -430,21 +430,6 @@ class LLModel:
             c_m = cm_l0 + cm_a*(alpha - alpha_l0) + delta_c*cm_d
 
         return c_m
-
-    def _integral_chord2(self):
-        # Computes the integral of the chord squared along the spanwise
-        # direction
-        r_1, r_2 = self._grid.get_corner_point_pos()
-        u_s = self._grid.get_unit_spanwise_vectors()
-        c_1, c_2 = self._grid.get_chord_lengths()
-
-        delta_l = r_2-r_1
-        delta_s = np.abs(np.sum(u_s*delta_l, axis=1))
-        int_chord2 = (delta_s*(c_2*c_2+c_1*c_2+c_1*c_1)/3.)
-
-        np.savetxt("int_chord2",int_chord2)
-
-        return int_chord2
 
 
 class LLGrid:
@@ -501,7 +486,8 @@ class LLGrid:
             'mixing_a': np.zeros(self._num_sections),
             'mixing_e': np.zeros(self._num_sections),
             'mixing_r': np.zeros(self._num_sections),
-            'Cm_d': np.zeros(self._num_sections)}
+            'Cm_d': np.zeros(self._num_sections),
+            'int_chord2': np.zeros(self._num_sections)}
         self._update_data()
 
     def _update_data(self):
@@ -521,6 +507,7 @@ class LLGrid:
             self._calc_unit_vectors(seg, cur_slice)
             self._calc_coefficients(seg, cur_slice)
             self._calc_control_surfaces(seg, cur_slice)
+        self._calc_integral_chord2()
 
     def _calc_control_points(self, seg, seg_slice):
         # Builds arrays for the control point and corner positions of
@@ -759,6 +746,19 @@ class LLGrid:
         mixing_e[:] = m_e
         mixing_r[:] = m_r
 
+    def _calc_integral_chord2(self):
+        # Computes the integral of the chord squared along the spanwise
+        # direction
+        r_1, r_2 = self.get_corner_point_pos()
+        u_s = self.get_unit_spanwise_vectors()
+        c_1, c_2 = self.get_chord_lengths()
+
+        delta_l = r_2-r_1
+        delta_s = np.abs(np.sum(u_s*delta_l, axis=1))
+        int_chord2 = (delta_s*(c_2*c_2+c_1*c_2+c_1*c_1)/3.)
+
+        self._data["int_chord2"] = int_chord2
+
     def get_cg_location(self):
         """Get the location of the aircraft center of gravity.
 
@@ -904,6 +904,17 @@ class LLGrid:
 
         """
         return self._data["c_1"], self._data["c_2"]
+
+    def get_integral_chord2(self):
+        """Get integral of chord squared along span for each section.
+
+        Returns
+        -------
+        numpy array
+            Array of resulting values for each section.
+
+        """
+        return self._data["int_chord2"]
 
     def get_section_areas(self):
         """Get planform areas for each wing section.
