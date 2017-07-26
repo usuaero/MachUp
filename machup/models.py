@@ -124,7 +124,9 @@ class LLModel:
                 v_local[:] = state["local_state"][:, 1:]
                 rho_local[:] = state["local_state"][:, 0]
                 v_mean = np.mean(v_local, axis=0)
-                u_inf[:] = v_mean/np.linalg.norm(v_mean)
+                u_inf[:] = v_mean/np.sqrt(v_mean[0]*v_mean[0] +
+                                          v_mean[1]*v_mean[1] +
+                                          v_mean[2]*v_mean[2])
             else:
                 v_xyz = np.zeros(3)
                 c_a = np.cos(state["alpha"]*np.pi/180.)
@@ -160,8 +162,8 @@ class LLModel:
         v_local = self._aero_data["v_loc"]
 
         r_cp_cg = r_cp - r_cg
-        v_rot = -np.cross(rotation, r_cp_cg)
-        v_local += v_rot
+        # v_rot = -np.cross(rotation, r_cp_cg)
+        v_local -= np.cross(rotation, r_cp_cg)
 
     def _process_control_state(self, state):
         # Takes state data from state and constructs necessary arrays
@@ -189,7 +191,6 @@ class LLModel:
                                                         slope*df_abs+intercept,
                                                         1.)
 
-    # @profile
     def solve(self, stype, aero_state=None, control_state=None):
         """Solve the numerical lifting line algorithm for the provided Plane.
 
@@ -256,15 +257,15 @@ class LLModel:
 
         rj1i = r_cp[:, None] - r_1
         rj2i = r_cp[:, None] - r_2
-        rj1i_mag = np.linalg.norm(rj1i, axis=2)
-        rj2i_mag = np.linalg.norm(rj2i, axis=2)
+        rj1i_mag = np.sqrt(np.einsum('ijk,ijk->ij', rj1i, rj1i))
+        rj2i_mag = np.sqrt(np.einsum('ijk,ijk->ij', rj2i, rj2i))
         rj1irj2i_mag = np.multiply(rj1i_mag, rj2i_mag)
 
         n_1 = np.cross(u_inf, rj2i)
         n_2 = np.cross(rj1i, rj2i)*(rj1i_mag+rj2i_mag)[:, :, None]
         n_3 = np.cross(u_inf, rj1i)
         d_1 = rj2i_mag*(rj2i_mag - np.inner(u_inf, rj2i))
-        d_2 = rj1irj2i_mag*(rj1irj2i_mag + np.sum(rj1i*rj2i, axis=2))
+        d_2 = rj1irj2i_mag*(rj1irj2i_mag + np.einsum('ijk,ijk->ij', rj1i, rj2i))
         d_3 = rj1i_mag*(rj1i_mag - np.inner(u_inf, rj1i))
 
         self._vji = n_1/d_1[:, :, None] - n_3/d_3[:, :, None]
@@ -276,7 +277,9 @@ class LLModel:
             # that the following code performs as would be expected.
             np.fill_diagonal(d_2, 0.)
             t_2 = np.true_divide(n_2, d_2[:, :, None])
-            t_2[~ np.isfinite(t_2)] = 0.
+            # t_2[~ np.isfinite(t_2)] = 0.
+            diag = np.diag_indices(self._num_vortices)
+            t_2[diag] = 0.
         self._vji += t_2
 
         self._vji *= 1./(4.*np.pi)
@@ -295,15 +298,17 @@ class LLModel:
         r_1, r_2 = self._grid.get_corner_point_pos()
         delta_l = r_2 - r_1
 
-        v_loc_mag = np.linalg.norm(v_loc, axis=1)
-        vji_un = np.sum(u_n[:, None]*vji, axis=2)
+        v_loc_mag = np.sqrt(np.einsum('ij,ij->i', v_loc, v_loc))
+        vji_un = np.einsum('ijk,ijk->ij', u_n[:, None], vji)
         self._a = (-v_loc_mag*delta_s*cl_a)[:, None]*vji_un
+        v_x_dl = np.cross(v_loc, delta_l)
         np.fill_diagonal(self._a, self._a.diagonal() +
-                         2.*np.linalg.norm(np.cross(v_loc, delta_l), axis=1))
+                         2.*np.sqrt(np.einsum('ij,ij->i', v_x_dl, v_x_dl)))
 
         # Dimensional version (no dividing by local input velocity)
         self._b = (v_loc_mag*delta_s*cl_a *
-                   (np.sum(v_loc*u_n, axis=1)+v_loc_mag*(delta_flap-alpha_l0)))
+                   (np.einsum('ij,ij->i', v_loc, u_n) +
+                    v_loc_mag*(delta_flap-alpha_l0)))
 
         # use the following b to compare with the fortran version linear solver
         if self._machup_compare:
@@ -316,8 +321,8 @@ class LLModel:
             al0_left = self._grid.get_left_zero_lift_alpha()
             al0_right = self._grid.get_right_zero_lift_alpha()
             spacing = self._grid.get_cp_spacing()
-            alpha_loc = np.arctan(np.sum(v_loc*u_n, axis=1) /
-                                  np.sum(v_loc*u_a, axis=1))
+            alpha_loc = np.arctan(np.einsum('ij,ij->i', v_loc, u_n) /
+                                  np.einsum('ij,ij->i', v_loc, u_a))
             cl_left = cla_left*(alpha_loc + (delta_flap-al0_left))
             cl_right = cla_right*(alpha_loc + (delta_flap-al0_right))
             cl = cl_left + spacing*(cl_right - cl_left)
@@ -337,7 +342,6 @@ class LLModel:
     def _solve_linear_system(self):
         self._gamma = np.linalg.solve(self._a, self._b)
 
-    # @profile
     def _forces_and_moments(self):
         # uses vortex strength to compute local and total forces and moments
         self._compute_velocities()
@@ -351,7 +355,7 @@ class LLModel:
         gamma = self._gamma
         v_loc = self._aero_data["v_loc"]
 
-        self._v_i = v_loc + np.sum(gamma[:, None]*vji, axis=1)
+        self._v_i = v_loc + np.einsum('ji,ijk->ik', gamma[:, None], vji)
 
     def _compute_forces(self):
         # Computes the aerodynamic force at each control point.
@@ -366,7 +370,8 @@ class LLModel:
         force_total = np.sum(self._forces, axis=0)
 
         drag = np.dot(force_total, u_inf)
-        lift = np.linalg.norm(force_total-drag*u_inf)
+        lift = force_total-drag*u_inf
+        lift = np.sqrt(lift[0]*lift[0]+lift[1]*lift[1]+lift[2]*lift[2])
 
         self._results["FX"] = force_total[0]
         self._results["FY"] = force_total[1]
@@ -385,7 +390,7 @@ class LLModel:
         int_chord2 = self._grid.get_integral_chord2()
         c_m = self._local_moment_coefficient(v_i)
 
-        v_i_mag = np.linalg.norm(v_i, axis=1)
+        v_i_mag = np.sqrt(np.einsum('ij,ij->i', v_i, v_i))
         # use the following v_i_mag to compare with fortran version
         if self._machup_compare:
             v_loc = self._aero_data["v_loc"]
@@ -409,8 +414,8 @@ class LLModel:
         alpha_l0 = self._grid.get_zero_lift_alpha()
 
         # pylint: disable=no-member
-        alpha = np.arctan(np.sum(v_i*u_n, axis=1) /
-                          np.sum(v_i*u_a, axis=1))
+        alpha = np.arctan(np.einsum('ij,ij->i', v_i, u_n) /
+                          np.einsum('ij,ij->i', v_i, u_a))
 
         if self._machup_compare:
             # The following matches how the fortran version of machup
@@ -754,7 +759,7 @@ class LLGrid:
         c_1, c_2 = self.get_chord_lengths()
 
         delta_l = r_2-r_1
-        delta_s = np.abs(np.sum(u_s*delta_l, axis=1))
+        delta_s = np.abs(np.einsum('ij,ij->i', u_s, delta_l))
         int_chord2 = (delta_s*(c_2*c_2+c_1*c_2+c_1*c_1)/3.)
 
         self._data["int_chord2"] = int_chord2
