@@ -106,6 +106,13 @@ class LLModel:
             "m": 0.,
             "n": 0.
         }
+        self._pre_calcs = {
+            "rj1i": np.zeros((self._num_vortices, self._num_vortices, 3)),
+            "rj2i": np.zeros((self._num_vortices, self._num_vortices, 3)),
+            "rj1i_mag": np.zeros((self._num_vortices, self._num_vortices)),
+            "rj2i_mag": np.zeros((self._num_vortices, self._num_vortices)),
+            "term_2": np.zeros((self._num_vortices, self._num_vortices, 3))
+        }
         self._vji = None  # np.zeros((self._num_vortices,self._num_vortices,3))
         self._v_i = None  # np.zeros((self._num_vortices, 3))
         self._forces = None  # np.zeros((self._num_vortices, 3))
@@ -113,6 +120,39 @@ class LLModel:
         self._gamma = None  # np.zeros(self._num_vortices)
         self._a = None  # np.zeros((self._num_vortices, self._num_vortices))
         self._b = None  # np.zeros(self._num_vortices)
+        self._pre_calculations()
+
+    def _pre_calculations(self):
+        # perform any calculations that are dependent on geometry only. This
+        # allows multiple calls to the solve function to be performed faster.
+        r_cp = self._grid.get_control_point_pos()
+        r_1, r_2 = self._grid.get_corner_point_pos()
+        u_inf = self._aero_data["u_inf"]
+        rj1i = self._pre_calcs["rj1i"]
+        rj2i = self._pre_calcs["rj2i"]
+        rj1i_mag = self._pre_calcs["rj1i_mag"]
+        rj2i_mag = self._pre_calcs["rj2i_mag"]
+        term_2 = self._pre_calcs["term_2"]
+
+        rj1i[:, :] = r_cp[:, None] - r_1
+        rj2i[:, :] = r_cp[:, None] - r_2
+        rj1i_mag[:, :] = np.sqrt(np.einsum('ijk,ijk->ij', rj1i, rj1i))
+        rj2i_mag[:, :] = np.sqrt(np.einsum('ijk,ijk->ij', rj2i, rj2i))
+        rj1irj2i_mag = np.multiply(rj1i_mag, rj2i_mag)
+
+        n_2 = np.cross(rj1i, rj2i)*(rj1i_mag+rj2i_mag)[:, :, None]
+        d_2 = rj1irj2i_mag*(rj1irj2i_mag + np.einsum('ijk,ijk->ij', rj1i, rj2i))
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            # Diagonal elements of denominator of second term should
+            # all be zero but sometimes they are not due to machine
+            # precision error. Setting them all to be zero guarantees
+            # that the following code performs as would be expected.
+            np.fill_diagonal(d_2, 0.)
+            term_2[:, :] = np.true_divide(n_2, d_2[:, :, None])
+            # t_2[~ np.isfinite(t_2)] = 0.
+            diag = np.diag_indices(self._num_vortices)
+            term_2[diag] = 0.
 
     def _process_aero_state(self, state):
         # Takes state data from state and constructs necessary arrays
@@ -242,7 +282,6 @@ class LLModel:
         else:
             raise RuntimeError("solver type not yet supported")
 
-    # @profile
     def _calc_induced_velocities(self):
         # Calculates influence of each segement of each horshoe vortex
         # on each control point. See Eq. 1.9.5 in Phillip's text. Note
@@ -255,33 +294,18 @@ class LLModel:
         r_1, r_2 = self._grid.get_corner_point_pos()
         u_inf = self._aero_data["u_inf"]
 
-        rj1i = r_cp[:, None] - r_1
-        rj2i = r_cp[:, None] - r_2
-        rj1i_mag = np.sqrt(np.einsum('ijk,ijk->ij', rj1i, rj1i))
-        rj2i_mag = np.sqrt(np.einsum('ijk,ijk->ij', rj2i, rj2i))
-        rj1irj2i_mag = np.multiply(rj1i_mag, rj2i_mag)
+        rj1i = self._pre_calcs["rj1i"]
+        rj2i = self._pre_calcs["rj2i"]
+        rj1i_mag = self._pre_calcs["rj1i_mag"]
+        rj2i_mag = self._pre_calcs["rj2i_mag"]
+        term_2 = self._pre_calcs["term_2"]
 
-        n_1 = np.cross(u_inf, rj2i)
-        n_2 = np.cross(rj1i, rj2i)*(rj1i_mag+rj2i_mag)[:, :, None]
-        n_3 = np.cross(u_inf, rj1i)
-        d_1 = rj2i_mag*(rj2i_mag - np.inner(u_inf, rj2i))
-        d_2 = rj1irj2i_mag*(rj1irj2i_mag + np.einsum('ijk,ijk->ij', rj1i, rj2i))
-        d_3 = rj1i_mag*(rj1i_mag - np.inner(u_inf, rj1i))
+        term_1 = np.cross(u_inf, rj2i)
+        term_1 /= (rj2i_mag*(rj2i_mag - np.inner(u_inf, rj2i)))[:, :, None]
+        term_3 = np.cross(u_inf, rj1i)
+        term_3 /= (rj1i_mag*(rj1i_mag - np.inner(u_inf, rj1i)))[:, :, None]
 
-        self._vji = n_1/d_1[:, :, None] - n_3/d_3[:, :, None]
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            # Diagonal elements of denominator of second term should
-            # all be zero but sometimes they are not due to machine
-            # precision error. Setting them all to be zero guarantees
-            # that the following code performs as would be expected.
-            np.fill_diagonal(d_2, 0.)
-            t_2 = np.true_divide(n_2, d_2[:, :, None])
-            # t_2[~ np.isfinite(t_2)] = 0.
-            diag = np.diag_indices(self._num_vortices)
-            t_2[diag] = 0.
-        self._vji += t_2
-
+        self._vji = term_1 + term_2 - term_3
         self._vji *= 1./(4.*np.pi)
 
     def _setup_linear_matrices(self):
