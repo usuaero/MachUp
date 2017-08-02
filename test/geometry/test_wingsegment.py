@@ -12,8 +12,21 @@ def straight_segment():
     """Returns a straight WingSegment with root at origin"""
     with open("test/geometry/testwings/wing_0.json") as file:
         wing_data = json.load(file, object_pairs_hook=OrderedDict)["wing_1"]
-        wing_data["side"] = "right"
-        seg = geom.WingSegment("straight_seg", wing_data)
+        dims = {
+            "delta_pos": [wing_data["connect"]["dx"],
+                          wing_data["connect"]["dy"],
+                          wing_data["connect"]["dz"]],
+            "semispan": wing_data["span"],
+            "sweep": wing_data["sweep"],
+            "dihedral": wing_data["dihedral"],
+            "mount_angle": wing_data["mounting_angle"],
+            "washout": wing_data["washout"],
+            "root_chord": wing_data["root_chord"],
+            "tip_chord": wing_data["tip_chord"],
+            "airfoils": wing_data["airfoils"],
+            "grid": wing_data["grid"],
+            "control": wing_data["control"]}
+        seg = geom.WingSegment("straight_seg", "right", dims)
         yield seg
 
 
@@ -57,8 +70,21 @@ def test_get_side_position(inputfile, side, tip, expected):
     # load input file
     with open(inputfile) as file:
         wing_data = json.load(file, object_pairs_hook=OrderedDict)["wing_1"]
-        wing_data["side"] = side
-        seg = geom.WingSegment("seg_name", wing_data)
+        dims = {
+            "delta_pos": [wing_data["connect"]["dx"],
+                          wing_data["connect"]["dy"],
+                          wing_data["connect"]["dz"]],
+            "semispan": wing_data["span"],
+            "sweep": wing_data["sweep"],
+            "dihedral": wing_data["dihedral"],
+            "mount_angle": wing_data["mounting_angle"],
+            "washout": wing_data["washout"],
+            "root_chord": wing_data["root_chord"],
+            "tip_chord": wing_data["tip_chord"],
+            "airfoils": wing_data["airfoils"],
+            "grid": wing_data["grid"],
+            "control": wing_data["control"]}
+        seg = geom.WingSegment("seg_name", side, dims)
 
         unit_normal = seg.get_side_position(tip)
         expected = np.array(expected)

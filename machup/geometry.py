@@ -15,6 +15,9 @@ Wing
 WingSegment
     Defines the geometry for a straight section of wing.
 
+Airfoil
+    Defines the properties of a 2D aifoil section.
+
 """
 
 import os
@@ -58,8 +61,8 @@ class Airplane:
     """
 
     def __init__(self, name="", inputfile=None):
-        self._name = name
-        self._wings = []
+        self.name = name
+        self._wings = {}
         self._cg_loc = np.zeros(3)
 
         if inputfile:
@@ -76,12 +79,27 @@ class Airplane:
         else:
             with open(filename) as file:
                 data = json.load(file, object_pairs_hook=OrderedDict)
-                self._name = data["plane"]["name"]
+                self.name = data["plane"]["name"]
                 self._cg_loc[0] = data["plane"]["CGx"]
                 self._cg_loc[1] = data["plane"]["CGy"]
                 self._cg_loc[2] = data["plane"]["CGz"]
-                for wing_key in data["wings"].keys():
-                    self.addwing(Wing(wing_key, data["wings"][wing_key]))
+                for wing_key, wing_dict in data["wings"].items():
+                    self.addwing(wing_key,
+                                 side=wing_dict["side"],
+                                 delta_pos=[wing_dict["connect"]["dx"],
+                                            wing_dict["connect"]["dy"],
+                                            wing_dict["connect"]["dz"]],
+                                 yoffset=wing_dict["connect"]["yoffset"],
+                                 semispan=wing_dict["span"],
+                                 sweep=wing_dict["sweep"],
+                                 dihedral=wing_dict["dihedral"],
+                                 mount_angle=wing_dict["mounting_angle"],
+                                 washout=wing_dict["washout"],
+                                 root_chord=wing_dict["root_chord"],
+                                 tip_chord=wing_dict["tip_chord"],
+                                 airfoils=wing_dict["airfoils"],
+                                 grid=wing_dict["grid"],
+                                 control=wing_dict["control"])
 
     def get_num_sections(self):
         """Get the total number of sections of all of the wings.
@@ -93,7 +111,7 @@ class Airplane:
 
         """
         total_sections = 0
-        for wing in self._wings:
+        for wing in self._wings.values():
             total_sections += wing.get_num_sections()
         return total_sections
 
@@ -107,11 +125,11 @@ class Airplane:
 
         """
         segments = []
-        for wing in self._wings:
+        for wing in self._wings.values():
             segments.extend(wing.get_wingsegments())
         return segments
 
-    def addwing(self, wing):
+    def addwing(self, name, side='both', **dims):
         """Add wing to airplane.
 
         Parameters
@@ -124,7 +142,7 @@ class Airplane:
         None
 
         """
-        self._wings.append(wing)
+        self._wings[name] = Wing(name, side, dims)
 
     def get_cg_location(self):
         """Get the location of the center of gravity.
@@ -182,46 +200,29 @@ class Wing:
 
     """
 
-    def __init__(self, wing_name, wing_dict):
-        self._name = wing_name
-        self._segments = []
-        self._root_loc = np.array([0., 0., 0.])
-        self._is_symmetric = True
-        if wing_dict:
-            self._buildfromdict(wing_dict)
+    def __init__(self, wing_name, side, dims):
+        self.name = wing_name
+        self._side = side
+        self._left_segment = None
+        self._right_segment = None
 
-    def _buildfromdict(self, wing_dict):
-        self._root_loc[0] = wing_dict["connect"]["dx"]
-        self._root_loc[1] = wing_dict["connect"]["dy"]
-        self._root_loc[2] = wing_dict["connect"]["dz"]
-        if wing_dict["side"] == "both":
-            self._is_symmetric = True
-
-            wing_dict["side"] = "left"
-            left_wing = WingSegment("left"+self._name, wing_dict)
-
-            wing_dict["side"] = "right"
-            right_wing = WingSegment("right"+self._name, wing_dict)
-
-            self._segments.append(left_wing)
-            self._segments.append(right_wing)
-        elif wing_dict["side"] == "right":
-            self._is_symmetric = False
-
-            wing_dict["side"] = "right"
-            right_wing = WingSegment("right"+self._name, wing_dict)
-
-            self._segments.append(right_wing)
-        elif wing_dict["side"] == "left":
-            self._is_symmetric = False
-
-            wing_dict["side"] = "left"
-            left_wing = WingSegment("left"+self._name, wing_dict)
-
-            self._segments.append(left_wing)
+        if self._side == "both":
+            self._left_segment = WingSegment("left_"+self.name,
+                                             "left",
+                                             dims)
+            self._right_segment = WingSegment("right_"+self.name,
+                                              "right",
+                                              dims)
+        elif self._side == "right":
+            self._right_segment = WingSegment("right_"+self.name,
+                                              "right",
+                                              dims)
+        elif self._side == "left":
+            self._left_segment = WingSegment("left_"+self.name,
+                                             "left",
+                                             dims)
         else:
-            side = wing_dict["side"]
-            raise RuntimeError(side+"side specification not recognized")
+            raise RuntimeError(self._side+"side specification not recognized")
 
     def get_num_sections(self):
         """Get the number of sections of the wings.
@@ -233,8 +234,14 @@ class Wing:
 
         """
         total_sections = 0
-        for seg in self._segments:
-            total_sections += seg.get_num_sections()
+        if self._side == "both":
+            total_sections += self._left_segment.get_num_sections()
+            total_sections += self._right_segment.get_num_sections()
+        elif self._side == "right":
+            total_sections += self._right_segment.get_num_sections()
+        elif self._side == "left":
+            total_sections += self._left_segment.get_num_sections()
+
         return total_sections
 
     def get_wingsegments(self):
@@ -246,7 +253,12 @@ class Wing:
             List of all WingSegments in wing.
 
         """
-        return self._segments
+        if self._side == "both":
+            return [self._left_segment, self._right_segment]
+        elif self._side == "right":
+            return [self._right_segment]
+        elif self._side == "left":
+            return [self._left_segment]
 
 
 class WingSegment:
@@ -275,12 +287,12 @@ class WingSegment:
 
     """
 
-    def __init__(self, name, wing_dict):
-        self._name = name
-        self._root_loc = np.array([0., 0., 0.])
+    def __init__(self, name, side, dims):
+        self.name = name
+        self._side = side
+        self._delta_pos = np.array([0., 0., 0.])
         self._dimensions = {
             "yoffset": 0.,
-            "side": "right",
             "span": 4.,
             "root_chord": 1.,
             "tip_chord": 1.,
@@ -302,33 +314,33 @@ class WingSegment:
         self._root_airfoil = None
         self._tip_airfoil = None
         self._num_sections = 40
+        self._unpack(dims)
 
-        self._buildfromdict(wing_dict)
-
-    def _buildfromdict(self, wing_dict):
-        self._root_loc[0] = wing_dict["connect"]["dx"]
-        self._root_loc[1] = wing_dict["connect"]["dy"]
-        self._root_loc[2] = wing_dict["connect"]["dz"]
-        self._dimensions["yoffset"] = wing_dict["connect"]["yoffset"]
-        self._dimensions["side"] = wing_dict["side"]
-        self._dimensions["span"] = wing_dict["span"]
-        self._dimensions["root_chord"] = wing_dict["root_chord"]
-        self._dimensions["tip_chord"] = wing_dict["tip_chord"]
-        self._dimensions["sweep"] = wing_dict["sweep"]
-        self._dimensions["dihedral"] = wing_dict["dihedral"]
-        self._dimensions["mounting_angle"] = wing_dict["mounting_angle"]
-        self._dimensions["washout"] = wing_dict["washout"]
-        self._num_sections = wing_dict["grid"]
-        airfoils = list(wing_dict["airfoils"].keys())
+    def _unpack(self, dims):
+        delta_pos = dims.get("delta_pos", [0., 0., 0.])
+        self._delta_pos[0] = delta_pos[0]
+        self._delta_pos[1] = delta_pos[1]
+        self._delta_pos[2] = delta_pos[2]
+        self._dimensions["yoffset"] = dims.get("yoffset", 0.)
+        self._dimensions["span"] = dims["semispan"]
+        self._dimensions["root_chord"] = dims["root_chord"]
+        self._dimensions["tip_chord"] = dims.get("tip_chord",
+                                                 dims["root_chord"])
+        self._dimensions["sweep"] = dims.get("sweep", 0.)
+        self._dimensions["dihedral"] = dims.get("dihedral", 0.)
+        self._dimensions["mounting_angle"] = dims.get("mount_angle", 0.)
+        self._dimensions["washout"] = dims.get("washout", 0.)
+        self._num_sections = dims.get("grid", 40)
+        airfoils = list(dims["airfoils"].keys())
         if len(airfoils) > 1:
-            self._root_airfoil = Airfoil(wing_dict["airfoils"][airfoils[0]])
-            self._tip_airfoil = Airfoil(wing_dict["airfoils"][airfoils[1]])
+            self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
+            self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[1]])
         else:
-            self._root_airfoil = Airfoil(wing_dict["airfoils"][airfoils[0]])
-            self._tip_airfoil = Airfoil(wing_dict["airfoils"][airfoils[0]])
+            self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
+            self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
 
-        control_dict = wing_dict["control"]
-        if wing_dict["side"] == "left":
+        control_dict = dims["control"]
+        if self._side == "left":
             self._control_data["left_span"] = 1. - control_dict["span_tip"]
             self._control_data["right_span"] = 1. - control_dict["span_root"]
             self._control_data["left_chord"] = control_dict["chord_tip"]
@@ -340,14 +352,14 @@ class WingSegment:
             self._control_data["right_chord"] = control_dict["chord_tip"]
         mix_dict = control_dict["mix"]
         if "aileron" in control_dict["mix"]:
-            if wing_dict["side"] == "right":
+            if self._side == "right":
                 self._control_data["mix_aileron"] = mix_dict["aileron"]
             else:
                 self._control_data["mix_aileron"] = -mix_dict["aileron"]
         if "elevator" in control_dict["mix"]:
             self._control_data["mix_elevator"] = mix_dict["elevator"]
         if "rudder" in control_dict["mix"]:
-            if wing_dict["side"] == "right":
+            if self._side == "right":
                 self._control_data["mix_rudder"] = mix_dict["rudder"]
             else:
                 self._control_data["mix_rudder"] = -mix_dict["rudder"]
@@ -404,9 +416,9 @@ class WingSegment:
 
         """
         if side == "left":
-            left_pos = np.copy(self._root_loc)
+            left_pos = np.copy(self._delta_pos)
 
-            if self._dimensions["side"] == "left":
+            if self._side == "left":
                 span = self._dimensions["span"]
                 sweep = self._dimensions["sweep"]*np.pi/180.
                 dihedral = self._dimensions["dihedral"]*np.pi/180.
@@ -420,9 +432,9 @@ class WingSegment:
 
             return left_pos
         elif side == "right":
-            right_pos = np.copy(self._root_loc)
+            right_pos = np.copy(self._delta_pos)
 
-            if self._dimensions["side"] == "right":
+            if self._side == "right":
                 span = self._dimensions["span"]
                 sweep = self._dimensions["sweep"]*np.pi/180.
                 dihedral = self._dimensions["dihedral"]*np.pi/180.
@@ -505,7 +517,7 @@ class WingSegment:
             The side of the segment.
 
         """
-        return self._dimensions["side"]
+        return self._side
 
     def get_control_surface_span(self):
         """Get location of control surface along WingSegment.
@@ -589,7 +601,7 @@ class Airfoil:
     """
 
     def __init__(self, airfoil_data):  # , airfoil_name):
-        # self._name = airfoil_name
+        # self.name = airfoil_name
         self._properties = {
             "alpha_L0": airfoil_data["properties"]["alpha_L0"],
             "CL_alpha": airfoil_data["properties"]["CL_alpha"],
