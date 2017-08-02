@@ -60,10 +60,11 @@ class Airplane:
 
     """
 
-    def __init__(self, name="", inputfile=None):
+    def __init__(self, name="", position=None, inputfile=None):
         self.name = name
         self._wings = {}
         self._cg_loc = np.zeros(3)
+        self._position = position
 
         if inputfile:
             self._buildfrominputfile(inputfile)
@@ -83,8 +84,20 @@ class Airplane:
                 self._cg_loc[0] = data["plane"]["CGx"]
                 self._cg_loc[1] = data["plane"]["CGy"]
                 self._cg_loc[2] = data["plane"]["CGz"]
+                id_map = {}
                 for wing_key, wing_dict in data["wings"].items():
+                    connect_to = wing_dict["connect"]["ID"]
+                    if connect_to == 0:
+                        id_map[wing_dict["ID"]] = wing_key
+                        connect = None
+                        connect_loc = 'tip'
+                    else:
+                        connect = id_map[connect_to]
+                        connect_loc = wing_dict["connect"]["location"]
+
                     self.addwing(wing_key,
+                                 connect_to=connect,
+                                 at=connect_loc,
                                  side=wing_dict["side"],
                                  delta_pos=[wing_dict["connect"]["dx"],
                                             wing_dict["connect"]["dy"],
@@ -129,7 +142,7 @@ class Airplane:
             segments.extend(wing.get_wingsegments())
         return segments
 
-    def addwing(self, name, side='both', **dims):
+    def addwing(self, name, connect_to=None, at='tip', side='both', **dims):
         """Add wing to airplane.
 
         Parameters
@@ -144,6 +157,13 @@ class Airplane:
         """
         self._wings[name] = Wing(name, side, dims)
 
+        if connect_to:
+            parent = self._wings[connect_to]
+        else:
+            parent = self
+
+        self._wings[name].connect_to(parent, at)
+
     def get_cg_location(self):
         """Get the location of the center of gravity.
 
@@ -154,6 +174,29 @@ class Airplane:
 
         """
         return self._cg_loc
+
+    def get_position(self, at):
+        """Get the position of the Airplane in the simulation.
+
+        This allows the user to specify a location for the plane in
+        the case that it is being used in some larger simulation.
+
+        Parameters
+        ----------
+        at
+            Required because get_position is a common method between
+            all geometry objects but it is currently ignored in the
+            case of an Airplane object.
+
+        Returns
+        -------
+        Position
+            Position of Airplane as specified by the user.
+        """
+        if self._position:
+            return self._position
+        else:
+            return np.array([0., 0., 0.])
 
     # def update_cg_loc(self, location):
     #     """Updates the location of aircraft center of gravity.
@@ -260,6 +303,55 @@ class Wing:
         elif self._side == "left":
             return [self._left_segment]
 
+    def connect_to(self, parent, at):
+        """Define a connection between wing and a "parent" geometry.
+
+        This allows for a wing to be position relative to another geometry
+        to facilitate grouping of geometry together. This is done for
+        convenience purposes. For example, to group tail surfaces together
+        so that they can all be moved by changing the position of just one
+        object instead of each individual surface.
+
+        Parameters
+        ----------
+        Parent
+            This can be another wing or an airplane object to connect to.
+
+        at
+            This is the location to attach to on the parent object. The
+            only options currently available are "tip" which signifies a
+            connection to wing tips of a parent wing.
+        """
+        if self._side == "both":
+            self._left_segment.connect_to(parent, at)
+            self._right_segment.connect_to(parent, at)
+        elif self._side == "left":
+            self._left_segment.connect_to(parent, at)
+        elif self._side == "right":
+            self._right_segment.connect_to(parent, at)
+
+    def get_position(self, at):
+        """Get the position connection location (at).
+
+        Parameters
+        ----------
+        at
+            The point where position is being queried. The only points
+            currently available are the "left_tip" and "right_tip"
+            connection points.
+
+        Returns
+        -------
+        Position
+            Position of connection point specified by 'at'.
+        """
+        if at == "left_tip":
+            return self._left_segment.get_position(at)
+        elif at == "right_tip":
+            return self._right_segment.get_position(at)
+        else:
+            raise RuntimeError(at+" is not a valid connection point")
+
 
 class WingSegment:
     """Defines the geometry for a wing segment.
@@ -289,6 +381,8 @@ class WingSegment:
 
     def __init__(self, name, side, dims):
         self.name = name
+        self._parent = None
+        self._connect_at = "tip"
         self._side = side
         self._delta_pos = np.array([0., 0., 0.])
         self._dimensions = {
@@ -365,6 +459,25 @@ class WingSegment:
                 self._control_data["mix_rudder"] = -mix_dict["rudder"]
         self._control_data["is_sealed"] = control_dict["is_sealed"]
 
+    def connect_to(self, parent, at):
+        """Define a connection between WingSegment and a "parent" geometry.
+
+        This allows for a WingSegment to be position relative to another
+        geometry to facilitate grouping of geometry together.
+
+        Parameters
+        ----------
+        Parent
+            This can be another wing or an airplane object to connect to.
+
+        at
+            This is the location to attach to on the parent object. The
+            only options currently available are "tip" which signifies a
+            connection to wing tips of a parent wing.
+        """
+        self._parent = parent
+        self._connect_at = self._side+"_"+at
+
     def get_airfoils(self):
         """Get the root and tip Airfoil of the WingSegment.
 
@@ -398,7 +511,7 @@ class WingSegment:
         """
         return self._dimensions["span"]
 
-    def get_side_position(self, side):
+    def get_position(self, side):
         """Get the position vector of a side of the WingSegment.
 
         Specifically, this returns the position at right or left
@@ -415,7 +528,7 @@ class WingSegment:
             The position vector of the left or right tip at the quarter chord.
 
         """
-        if side == "left":
+        if side == "left_tip":
             left_pos = np.copy(self._delta_pos)
 
             if self._side == "left":
@@ -430,8 +543,8 @@ class WingSegment:
             else:
                 left_pos[1] += self._dimensions["yoffset"]
 
-            return left_pos
-        elif side == "right":
+            return left_pos + self._get_parent_position()
+        elif side == "right_tip":
             right_pos = np.copy(self._delta_pos)
 
             if self._side == "right":
@@ -446,9 +559,15 @@ class WingSegment:
             else:
                 right_pos[1] -= self._dimensions["yoffset"]
 
-            return right_pos
+            return right_pos + self._get_parent_position()
         else:
             raise RuntimeError("side specified incorrectly")
+
+    def _get_parent_position(self):
+        if self._parent:
+            return self._parent.get_position(self._connect_at)
+        else:
+            return np.array([0., 0., 0.])
 
     def get_chord(self):
         """Get the root and tip chords of the wing segment.

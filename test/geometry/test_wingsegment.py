@@ -57,16 +57,15 @@ WING_DIR = "test/geometry/testwings/"
 
 
 @pytest.mark.parametrize("inputfile,side,tip,expected", [
-    (WING_DIR+"wing_1.json", "right", "right", (-0.45530792283384,
-                                                3.984778792367,
-                                                -1.3486229709906)),
-    (WING_DIR+"wing_1.json", "right", "left", (0.25, 0.0, -1.)),
-    (WING_DIR+"wing_1.json", "left", "right", (0.25, 0.0, -1.)),
-    (WING_DIR+"wing_1.json", "left", "left", (-0.45530792283384,
-                                              -3.984778792367,
-                                              -1.3486229709906)),
-])
-def test_get_side_position(inputfile, side, tip, expected):
+    (WING_DIR+"wing_1.json", "right", "right_tip", (-0.45530792283384,
+                                                    3.984778792367,
+                                                    -1.3486229709906)),
+    (WING_DIR+"wing_1.json", "right", "left_tip", (0.25, 0.0, -1.)),
+    (WING_DIR+"wing_1.json", "left", "right_tip", (0.25, 0.0, -1.)),
+    (WING_DIR+"wing_1.json", "left", "left_tip", (-0.45530792283384,
+                                                  -3.984778792367,
+                                                  -1.3486229709906))])
+def test_get_position(inputfile, side, tip, expected):
     # load input file
     with open(inputfile) as file:
         wing_data = json.load(file, object_pairs_hook=OrderedDict)["wing_1"]
@@ -86,7 +85,7 @@ def test_get_side_position(inputfile, side, tip, expected):
             "control": wing_data["control"]}
         seg = geom.WingSegment("seg_name", side, dims)
 
-        unit_normal = seg.get_side_position(tip)
+        unit_normal = seg.get_position(tip)
         expected = np.array(expected)
 
         assert np.allclose(unit_normal, expected, rtol=0., atol=1e-10) is True

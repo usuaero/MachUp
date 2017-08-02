@@ -587,8 +587,8 @@ class LLGrid:
 
     def _calc_segment_points(self, seg, spacing):
         # calculates the coordinates for a spacing of points along a segment
-        left_pos = seg.get_side_position("left")
-        right_pos = seg.get_side_position("right")
+        left_pos = seg.get_position("left_tip")
+        right_pos = seg.get_position("right_tip")
         length = np.linalg.norm(right_pos - left_pos)
         unit_s = self._calc_unit_s(left_pos, right_pos)
         x_pos = length*spacing*unit_s[0] + left_pos[0]
