@@ -168,11 +168,17 @@ class LLModel:
                                           v_mean[1]*v_mean[1] +
                                           v_mean[2]*v_mean[2])
             else:
+                if "V_mag" not in state:
+                    raise RuntimeError("Must supply 'V_mag' key and value")
+                if "rho" not in state:
+                    raise RuntimeError("Must supply 'rho' key and value")
+                alpha = state.get("alpha", 0.)*np.pi/180.
+                beta = state.get("beta", 0.)*np.pi/180.
+                c_a = np.cos(alpha)
+                s_a = np.sin(alpha)
+                c_b = np.cos(beta)
+                s_b = np.sin(beta)
                 v_xyz = np.zeros(3)
-                c_a = np.cos(state["alpha"]*np.pi/180.)
-                s_a = np.sin(state["alpha"]*np.pi/180.)
-                c_b = np.cos(state["beta"]*np.pi/180.)
-                s_b = np.sin(state["beta"]*np.pi/180.)
                 v_xyz[:] = state["V_mag"]/np.sqrt(1.-s_a*s_a*s_b*s_b)
                 v_xyz[0] *= -c_a*c_b
                 v_xyz[1] *= -c_a*s_b
@@ -181,7 +187,9 @@ class LLModel:
                 u_inf[:] = (v_xyz/np.linalg.norm(v_xyz))
                 rho_local[:] = state["rho"]
 
-            if 'roll_rate' in state:
+            if ('roll_rate' in state or
+                    'pitch_rate' in state or
+                    'yaw_rate' in state):
                 self._superimpose_rotation(state)
 
         else:
@@ -192,9 +200,9 @@ class LLModel:
     def _superimpose_rotation(self, state):
         # Calculate velocities due to rotation and superimpose them
         # on the freestream velocities
-        r_rate = self._aero_data["roll_rate"] = state["roll_rate"]
-        p_rate = self._aero_data["pitch_rate"] = state["pitch_rate"]
-        y_rate = self._aero_data["yaw_rate"] = state["yaw_rate"]
+        r_rate = self._aero_data["roll_rate"] = state.get("roll_rate", 0.)
+        p_rate = self._aero_data["pitch_rate"] = state.get("pitch_rate", 0.)
+        y_rate = self._aero_data["yaw_rate"] = state.get("yaw_rate", 0.)
 
         rotation = np.array([r_rate, p_rate, y_rate])
         r_cp = self._grid.get_control_point_pos()
@@ -208,9 +216,9 @@ class LLModel:
     def _process_control_state(self, state):
         # Takes state data from state and constructs necessary arrays
         if state:
-            delta_a = state["aileron"]
-            delta_e = state["elevator"]
-            delta_r = state["rudder"]
+            delta_a = state.get("aileron", 0.)
+            delta_e = state.get("elevator", 0.)
+            delta_r = state.get("rudder", 0.)
             mixing_a, mixing_e, mixing_r = self._grid.get_control_mix()
 
             self._control_data["delta_flap"] = (delta_a*mixing_a +
