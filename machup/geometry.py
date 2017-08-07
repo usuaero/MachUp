@@ -868,7 +868,7 @@ class Airfoil:
 
     """
 
-    def __init__(self, airfoil_name='NACA2410', airfoil_data=None):
+    def __init__(self, airfoil_name='NACA2412', airfoil_data=None):
         self.name = airfoil_name
         if airfoil_data:
             self._properties = {
@@ -883,14 +883,14 @@ class Airfoil:
             }
         else:
             self._properties = {
-                "alpha_L0": -0.0368,
-                "CL_alpha": 6.1976,
+                "alpha_L0": -0.0369,
+                "CL_alpha": 6.2832,
                 "CL_max": 1.4,
-                "Cm_L0": -0.0525,
-                "Cm_alpha": 0.0326,
-                "CD_0": 0.00569,
-                "CD_L": -0.00450,
-                "CD_L2": 0.01040
+                "Cm_L0": -0.0527,
+                "Cm_alpha": -0.08,
+                "CD_0": 0.0055,
+                "CD_L": -0.0045,
+                "CD_L2": 0.01
             }
 
     def get_lift_slope(self):

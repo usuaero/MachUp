@@ -22,7 +22,7 @@ def test_u2_simple_monowing():
                                 tip_chord=0.5,
                                 dihedral=3.)
 
-    mainWing.airfoil("NACA2410",
+    mainWing.airfoil("NACA2412",
                      alpha_L0=-0.036899751,
                      CL_alpha=6.283185307,
                      Cm_L0=-0.0527,
