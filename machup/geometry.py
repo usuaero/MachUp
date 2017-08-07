@@ -18,6 +18,9 @@ WingSegment
 Airfoil
     Defines the properties of a 2D aifoil section.
 
+ControlSurface
+    Defines the properties of a control surface.
+
 """
 
 import os
@@ -49,9 +52,6 @@ class Airplane:
 
     Raises
     ------
-    RuntimeError
-        If an inputfile is not specified. This is only a temporary
-        measure until the primary method of construction is implemented.
     IOError
         If input filepath or filename is invalid.
 
@@ -68,8 +68,6 @@ class Airplane:
 
         if inputfile:
             self._buildfrominputfile(inputfile)
-        else:
-            raise RuntimeError("Inputfile required")
 
     def _buildfrominputfile(self, filename):
         # Construct airplane from information in .json file
@@ -77,42 +75,77 @@ class Airplane:
             print('Error: Connot find file "{0}". Make sure'.format(filename))
             print(' the path is correct and the file is accessible.')
             raise IOError(filename)
-        else:
-            with open(filename) as file:
-                data = json.load(file, object_pairs_hook=OrderedDict)
-                self.name = data["plane"]["name"]
-                self._cg_loc[0] = data["plane"]["CGx"]
-                self._cg_loc[1] = data["plane"]["CGy"]
-                self._cg_loc[2] = data["plane"]["CGz"]
-                id_map = {}
-                for wing_key, wing_dict in data["wings"].items():
-                    connect_to = wing_dict["connect"]["ID"]
-                    if connect_to == 0:
-                        id_map[wing_dict["ID"]] = wing_key
-                        connect = None
-                        connect_loc = 'tip'
-                    else:
-                        connect = id_map[connect_to]
-                        connect_loc = wing_dict["connect"]["location"]
+        with open(filename) as file:
+            data = json.load(file, object_pairs_hook=OrderedDict)
+            self.name = data["plane"]["name"]
+            self._cg_loc[0] = data["plane"]["CGx"]
+            self._cg_loc[1] = data["plane"]["CGy"]
+            self._cg_loc[2] = data["plane"]["CGz"]
+            id_map = {}
+            for wing_key, wing_dict in data["wings"].items():
+                connect_to = wing_dict["connect"]["ID"]
+                if connect_to == 0:
+                    id_map[wing_dict["ID"]] = wing_key
+                    connect = None
+                    connect_loc = 'tip'
+                else:
+                    connect = id_map[connect_to]
+                    connect_loc = wing_dict["connect"]["location"]
 
-                    self.addwing(wing_key,
-                                 connect_to=connect,
-                                 at=connect_loc,
-                                 side=wing_dict["side"],
-                                 delta_pos=[wing_dict["connect"]["dx"],
-                                            wing_dict["connect"]["dy"],
-                                            wing_dict["connect"]["dz"]],
-                                 yoffset=wing_dict["connect"]["yoffset"],
-                                 semispan=wing_dict["span"],
-                                 sweep=wing_dict["sweep"],
-                                 dihedral=wing_dict["dihedral"],
-                                 mount_angle=wing_dict["mounting_angle"],
-                                 washout=wing_dict["washout"],
-                                 root_chord=wing_dict["root_chord"],
-                                 tip_chord=wing_dict["tip_chord"],
-                                 airfoils=wing_dict["airfoils"],
-                                 grid=wing_dict["grid"],
-                                 control=wing_dict["control"])
+                wing = self.add_wing(wing_key,
+                                     connect_to=connect,
+                                     at=connect_loc,
+                                     side=wing_dict["side"],
+                                     position=[wing_dict["connect"]["dx"],
+                                               wing_dict["connect"]["dy"],
+                                               wing_dict["connect"]["dz"]],
+                                     yoffset=wing_dict["connect"]["yoffset"],
+                                     semispan=wing_dict["span"],
+                                     sweep=wing_dict["sweep"],
+                                     dihedral=wing_dict["dihedral"],
+                                     mount_angle=wing_dict["mounting_angle"],
+                                     washout=wing_dict["washout"],
+                                     root_chord=wing_dict["root_chord"],
+                                     tip_chord=wing_dict["tip_chord"],
+                                     airfoils=wing_dict["airfoils"],
+                                     grid=wing_dict["grid"],
+                                     control=wing_dict["control"])
+                airfoils = list(wing_dict["airfoils"])
+                if len(airfoils) > 1:
+                    root = wing_dict["airfoils"][airfoils[0]]["properties"]
+                    tip = wing_dict["airfoils"][airfoils[1]]["properties"]
+                    wing.airfoil(airfoils[0],
+                                 "root",
+                                 alpha_L0=root["alpha_L0"],
+                                 CL_alpha=root["CL_alpha"],
+                                 Cm_L0=root["Cm_L0"],
+                                 Cm_alpha=root["Cm_alpha"],
+                                 CD0=root["CD0"],
+                                 CD0_L=root["CD0_L"],
+                                 CD0_L2=root["CD0_L2"],
+                                 CL_max=root["CL_max"])
+                    wing.airfoil(airfoils[1],
+                                 "tip",
+                                 alpha_L0=tip["alpha_L0"],
+                                 CL_alpha=tip["CL_alpha"],
+                                 Cm_L0=tip["Cm_L0"],
+                                 Cm_alpha=tip["Cm_alpha"],
+                                 CD0=tip["CD0"],
+                                 CD0_L=tip["CD0_L"],
+                                 CD0_L2=tip["CD0_L2"],
+                                 CL_max=tip["CL_max"])
+                else:
+                    root = wing_dict["airfoils"][airfoils[0]]["properties"]
+                    wing.airfoil(airfoils[0],
+                                 "both",
+                                 alpha_L0=root["alpha_L0"],
+                                 CL_alpha=root["CL_alpha"],
+                                 Cm_L0=root["Cm_L0"],
+                                 Cm_alpha=root["Cm_alpha"],
+                                 CD0=root["CD0"],
+                                 CD0_L=root["CD0_L"],
+                                 CD0_L2=root["CD0_L2"],
+                                 CL_max=root["CL_max"])
 
     def get_num_sections(self):
         """Get the total number of sections of all of the wings.
@@ -142,7 +175,7 @@ class Airplane:
             segments.extend(wing.get_wingsegments())
         return segments
 
-    def addwing(self, name, connect_to=None, at='tip', side='both', **dims):
+    def add_wing(self, name, connect_to=None, at='tip', side='both', **dims):
         """Add wing to airplane.
 
         Parameters
@@ -164,6 +197,8 @@ class Airplane:
 
         self._wings[name].connect_to(parent, at)
 
+        return self._wings[name]
+
     def get_cg_location(self):
         """Get the location of the center of gravity.
 
@@ -174,6 +209,26 @@ class Airplane:
 
         """
         return self._cg_loc
+
+    def cg_location(self, x_coord=None, y_coord=None, z_coord=None):
+        """Set the location of the center of gravity.
+
+        Parameters
+        -------
+        x_coord
+            The updated x-coordinate of the center of gravity.
+        y_coord
+            The updated y-coordinate of the center of gravity.
+        z_coord
+            The updated z-coordinate of the center of gravity.
+
+        """
+        if x_coord:
+            self._cg_loc[0] = x_coord
+        if y_coord:
+            self._cg_loc[1] = y_coord
+        if z_coord:
+            self._cg_loc[2] = z_coord
 
     def get_position(self, at):
         """Get the position of the Airplane in the simulation.
@@ -193,28 +248,11 @@ class Airplane:
         Position
             Position of Airplane as specified by the user.
         """
+        # pylint: disable=unused-argument
         if self._position:
             return self._position
-        else:
-            return np.array([0., 0., 0.])
 
-    # def update_cg_loc(self, location):
-    #     """Updates the location of aircraft center of gravity.
-
-    #     Parameters
-    #     ----------
-    #     location : np.array
-
-    #     Returns
-    #     -------
-
-    #     Raises
-    #     ------
-
-    #     Notes
-    #     -----
-
-    #     """
+        return np.array([0., 0., 0.])
 
 
 class Wing:
@@ -352,6 +390,99 @@ class Wing:
         else:
             raise RuntimeError(at+" is not a valid connection point")
 
+    def airfoil(self, name, end="both", **properties):
+        """Update the properties of the root and/or tip airfoils.
+
+        Parameters
+        ----------
+        end
+            Can be set as 'both', 'root', or 'tip' to set both to be
+            the same or modify each individually.
+        name
+            The name of the airfoil.
+
+        **properties
+            All of properties need to specify an Airfoil can be passed
+            in as key word arguments. These include the following:
+            alpha_L0 - zero-lift angle of attack,
+            CL_alpha - The lift coefficient slope,
+            Cm_alpha - The moment coefficient slope,
+            Cm_L0 - The zero-lift coefficient of moment,
+            CD0 - The zero-lift drag,
+            CD0_L - The drag coefficient proportional to lift,
+            CD0_L2 - The drag coefficient proportional to lift squared.
+            CL_max - The max lift coefficient.
+
+        Returns
+        -------
+        Airfoil
+            The newly created Airfoil object.
+        """
+        airfoil = Airfoil(name, properties)
+
+        if self._side == "both":
+            self._left_segment.airfoil(end, airfoil)
+            self._right_segment.airfoil(end, airfoil)
+        elif self._side == "left":
+            self._left_segment.airfoil(end, airfoil)
+        elif self._side == "right":
+            self._right_segment.airfoil(end, airfoil)
+
+        return airfoil
+
+    def control_surface(self, mix, percent_span, percent_chord, sealed=True):
+        """Set the properties of the control surface.
+
+        Parameters
+        ----------
+        mix : Dict
+            Contains the ratio of control surface deflection to control input.
+            For example, inputing {"elevator": 1.} would mix the control
+            surface 100 percent with elevator control input.
+
+        percent_span : tuple
+            The spanwise location of the control surface root and tip
+            respectively, normalized by semispan.
+
+        percent_chord : tuple or float
+            The control surface width at the control surface root and tip
+            respectively, normalized by chord length. If a single value is
+            passed in then width is assumed to be the same at both the root
+            and tip.
+
+        is_sealed : bool
+            Boolean flag for whether the control surface hinge is sealed.
+
+        Returns
+        -------
+        ControlSurface
+            The newly created ControlSurface object.
+        """
+
+        properties = {}
+        properties["mix"] = mix
+        properties["span_root"] = percent_span[0]
+        properties["span_tip"] = percent_span[1]
+        try:
+            properties["chord_root"] = percent_chord[0]
+            properties["chord_tip"] = percent_chord[1]
+        except TypeError:
+            properties["chord_root"] = percent_chord
+            properties["chord_tip"] = percent_chord
+        properties["is_sealed"] = sealed
+
+        control_surface = ControlSurface(properties)
+
+        if self._side == "both":
+            self._left_segment.control_surface(control_surface)
+            self._right_segment.control_surface(control_surface)
+        elif self._side == "left":
+            self._left_segment.control_surface(control_surface)
+        elif self._side == "right":
+            self._right_segment.control_surface(control_surface)
+
+        return control_surface
+
 
 class WingSegment:
     """Defines the geometry for a wing segment.
@@ -395,23 +526,24 @@ class WingSegment:
             "mounting_angle": 0.,
             "washout": 0
         }
-        self._control_data = {
-            "left_span": 0.,
-            "right_span": 0.,
-            "left_chord": 0.,
-            "right_chord": 0.,
-            "mix_aileron": 0.,
-            "mix_elevator": 0.,
-            "mix_rudder": 0.,
-            "is_sealed": 0.
-        }
+        # self._control_data = {
+        #     "left_span": 0.,
+        #     "right_span": 0.,
+        #     "left_chord": 0.,
+        #     "right_chord": 0.,
+        #     "mix_aileron": 0.,
+        #     "mix_elevator": 0.,
+        #     "mix_rudder": 0.,
+        #     "is_sealed": 0.
+        # }
         self._root_airfoil = None
         self._tip_airfoil = None
+        self._control_surface = None
         self._num_sections = 40
         self._unpack(dims)
 
     def _unpack(self, dims):
-        delta_pos = dims.get("delta_pos", [0., 0., 0.])
+        delta_pos = dims.get("position", [0., 0., 0.])
         self._delta_pos[0] = delta_pos[0]
         self._delta_pos[1] = delta_pos[1]
         self._delta_pos[2] = delta_pos[2]
@@ -425,39 +557,22 @@ class WingSegment:
         self._dimensions["mounting_angle"] = dims.get("mount_angle", 0.)
         self._dimensions["washout"] = dims.get("washout", 0.)
         self._num_sections = dims.get("grid", 40)
-        airfoils = list(dims["airfoils"].keys())
-        if len(airfoils) > 1:
-            self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
-            self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[1]])
+        if "aifoils" in dims:
+            airfoils = list(dims["airfoils"].keys())
+            if len(airfoils) > 1:
+                self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
+                self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[1]])
+            else:
+                self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
+                self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
         else:
-            self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
-            self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
+            self._root_airfoil = Airfoil()
+            self._tip_airfoil = Airfoil()
 
-        control_dict = dims["control"]
-        if self._side == "left":
-            self._control_data["left_span"] = 1. - control_dict["span_tip"]
-            self._control_data["right_span"] = 1. - control_dict["span_root"]
-            self._control_data["left_chord"] = control_dict["chord_tip"]
-            self._control_data["right_chord"] = control_dict["chord_root"]
+        if "control" in dims:
+            self._control_surface = ControlSurface(dims["control"])
         else:
-            self._control_data["left_span"] = control_dict["span_root"]
-            self._control_data["right_span"] = control_dict["span_tip"]
-            self._control_data["left_chord"] = control_dict["chord_root"]
-            self._control_data["right_chord"] = control_dict["chord_tip"]
-        mix_dict = control_dict["mix"]
-        if "aileron" in control_dict["mix"]:
-            if self._side == "right":
-                self._control_data["mix_aileron"] = mix_dict["aileron"]
-            else:
-                self._control_data["mix_aileron"] = -mix_dict["aileron"]
-        if "elevator" in control_dict["mix"]:
-            self._control_data["mix_elevator"] = mix_dict["elevator"]
-        if "rudder" in control_dict["mix"]:
-            if self._side == "right":
-                self._control_data["mix_rudder"] = mix_dict["rudder"]
-            else:
-                self._control_data["mix_rudder"] = -mix_dict["rudder"]
-        self._control_data["is_sealed"] = control_dict["is_sealed"]
+            self._control_surface = ControlSurface()
 
     def connect_to(self, parent, at):
         """Define a connection between WingSegment and a "parent" geometry.
@@ -477,6 +592,34 @@ class WingSegment:
         """
         self._parent = parent
         self._connect_at = self._side+"_"+at
+
+    def airfoil(self, end, airfoil):
+        """Set the airfoil(s) of the wing segment.
+
+        Parameters
+        ----------
+        end : str
+            Whether the airfoil is being set as the root or tip airfoil.
+        airfoil : Airfoil
+            The airfoil to be used.
+        """
+        if end == "both":
+            self._root_airfoil = airfoil
+            self._tip_airfoil = airfoil
+        elif end == "root":
+            self._root_airfoil = airfoil
+        elif end == "tip":
+            self._tip_airfoil = airfoil
+
+    def control_surface(self, control_surface):
+        """Set the control surface for the wing segment.
+
+        Parameters
+        ----------
+        ControlSurface
+            The control surface to be used.
+        """
+        self._control_surface = control_surface
 
     def get_airfoils(self):
         """Get the root and tip Airfoil of the WingSegment.
@@ -566,8 +709,7 @@ class WingSegment:
     def _get_parent_position(self):
         if self._parent:
             return self._parent.get_position(self._connect_at)
-        else:
-            return np.array([0., 0., 0.])
+        return np.array([0., 0., 0.])
 
     def get_chord(self):
         """Get the root and tip chords of the wing segment.
@@ -651,8 +793,12 @@ class WingSegment:
             ends at starting from the left side of the WingSegment.
 
         """
-        start = self._control_data["left_span"]
-        end = self._control_data["right_span"]
+        if self._side == "left":
+            end, start = self._control_surface.get_control_span()
+            end = 1. - end
+            start = 1. - start
+        elif self._side == "right":
+            start, end = self._control_surface.get_control_span()
 
         return start, end
 
@@ -668,10 +814,12 @@ class WingSegment:
             chord on the right side of the control surface.
 
         """
-        left_control_chord = self._control_data["left_chord"]
-        right_control_chord = self._control_data["right_chord"]
+        if self._side == "left":
+            right_chord, left_chord = self._control_surface.get_control_chord()
+        elif self._side == "right":
+            left_chord, right_chord = self._control_surface.get_control_chord()
 
-        return left_control_chord, right_control_chord
+        return left_chord, right_chord
 
     def get_control_mix(self):
         """Get the mixing parameters of the WingSegment.
@@ -682,9 +830,10 @@ class WingSegment:
             The aileron, elevator, and rudder mixing respectively.
 
         """
-        mix_aileron = self._control_data["mix_aileron"]
-        mix_elevator = self._control_data["mix_elevator"]
-        mix_rudder = self._control_data["mix_rudder"]
+        control_mix = self._control_surface.get_control_mix(self._side)
+        mix_aileron = control_mix.get("aileron", 0.)
+        mix_elevator = control_mix.get("elevator", 0.)
+        mix_rudder = control_mix.get("rudder", 0.)
 
         return mix_aileron, mix_elevator, mix_rudder
 
@@ -697,7 +846,7 @@ class WingSegment:
             True if control surface has been specified as sealed.
 
         """
-        return self._control_data["is_sealed"]
+        return self._control_surface.get_is_control_sealed()
 
 
 class Airfoil:
@@ -719,18 +868,30 @@ class Airfoil:
 
     """
 
-    def __init__(self, airfoil_data):  # , airfoil_name):
-        # self.name = airfoil_name
-        self._properties = {
-            "alpha_L0": airfoil_data["properties"]["alpha_L0"],
-            "CL_alpha": airfoil_data["properties"]["CL_alpha"],
-            "CL_max": airfoil_data["properties"]["CL_max"],
-            "Cm_L0": airfoil_data["properties"]["Cm_L0"],
-            "Cm_alpha": airfoil_data["properties"]["Cm_alpha"],
-            "CD_0": airfoil_data["properties"]["CD0"],
-            "CD_L": airfoil_data["properties"]["CD0_L"],
-            "CD_L2": airfoil_data["properties"]["CD0_L2"]
-        }
+    def __init__(self, airfoil_name='NACA2410', airfoil_data=None):
+        self.name = airfoil_name
+        if airfoil_data:
+            self._properties = {
+                "alpha_L0": airfoil_data["alpha_L0"],
+                "CL_alpha": airfoil_data["CL_alpha"],
+                "CL_max": airfoil_data["CL_max"],
+                "Cm_L0": airfoil_data["Cm_L0"],
+                "Cm_alpha": airfoil_data["Cm_alpha"],
+                "CD_0": airfoil_data["CD0"],
+                "CD_L": airfoil_data["CD0_L"],
+                "CD_L2": airfoil_data["CD0_L2"]
+            }
+        else:
+            self._properties = {
+                "alpha_L0": -0.0368,
+                "CL_alpha": 6.1976,
+                "CL_max": 1.4,
+                "Cm_L0": -0.0525,
+                "Cm_alpha": 0.0326,
+                "CD_0": 0.00569,
+                "CD_L": -0.00450,
+                "CD_L2": 0.01040
+            }
 
     def get_lift_slope(self):
         """Get the lift coefficient slope of the Airfoil.
@@ -775,3 +936,104 @@ class Airfoil:
 
         """
         return self._properties["Cm_L0"]
+
+
+class ControlSurface:
+    """Defines the dimensions and properties of wing control surface.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    ControlSurface
+        Returns the newly created ControlSurface object.
+
+    Examples
+    --------
+    """
+    def __init__(self, dimensions=None):
+        self._span_root = 0.
+        self._span_tip = 0.
+        self._chord_root = 0.
+        self._chord_tip = 0.
+        self._is_sealed = True
+        self._mix = {}
+
+        if dimensions:
+            self._span_root = dimensions["span_root"]
+            self._span_tip = dimensions["span_tip"]
+            self._chord_root = dimensions["chord_root"]
+            self._chord_tip = dimensions["chord_tip"]
+            self._is_sealed = dimensions["is_sealed"]
+
+            mix_dict = dimensions["mix"]
+            if "aileron" in mix_dict:
+                self._mix["aileron"] = mix_dict["aileron"]
+            if "elevator" in mix_dict:
+                self._mix["elevator"] = mix_dict["elevator"]
+            if "rudder" in mix_dict:
+                self._mix["rudder"] = mix_dict["rudder"]
+
+    def get_control_span(self):
+        """Get the spanwise location of control surface,
+
+        Returns
+        -------
+        tuple
+            The spanwise location of the root and tip of the control
+            surface, normalized by semispan.
+        """
+        return self._span_root, self._span_tip
+
+    def get_control_chord(self):
+        """Get the control surface width.
+
+        Returns
+        -------
+        tuple
+            The control surface width at the root and tip of the control
+            surface, normalized by chord.
+        """
+        return self._chord_root, self._chord_tip
+
+    def get_control_mix(self, side):
+        """Get the control surface mixing parameters.
+
+        Parameters
+        ----------
+        side
+            The side of the airplane that the WingSegment is on. This
+            allows the method to return the proper mixing for control
+            surfaces that are deflected in an asymmetric manner.
+
+        Returns
+        -------
+        control_mix : Dict
+        """
+        segment_mix = {}
+        if "aileron" in self._mix:
+            if side == "right":
+                segment_mix["aileron"] = self._mix["aileron"]
+            else:
+                segment_mix["aileron"] = -self._mix["aileron"]
+        if "elevator" in self._mix:
+            segment_mix["elevator"] = self._mix["elevator"]
+        if "rudder" in self._mix:
+            if side == "right":
+                segment_mix["rudder"] = self._mix["rudder"]
+            else:
+                segment_mix["rudder"] = -self._mix["rudder"]
+
+        return segment_mix
+
+    def get_is_control_sealed(self):
+        """Check if control surface is sealed.
+
+        Returns
+        -------
+        boolean
+            True if control surface has been specified as sealed.
+
+        """
+        return self._is_sealed
