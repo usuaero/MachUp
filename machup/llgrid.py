@@ -8,6 +8,9 @@ class.
 """
 
 
+import numpy as np
+
+
 class LLGrid:
     """Descritizes airplane information for the lifting-line algorithm.
 

@@ -13,7 +13,7 @@ used in a python script that performs more complicated analysis.
 """
 
 import machup.geometry as geom
-import machup.models as models
+import machup.llmodel as model
 import numpy as np
 
 
@@ -23,7 +23,7 @@ def test_u1_read_in_from_file():
     myPlane = geom.Airplane(inputfile=filename)
 
     # Generate lifting-line model for airplane
-    myLLModel = models.LLModel(myPlane)
+    myLLModel = model.LLModel(myPlane)
 
     # Solve the lifting-line model for the given condition
     controls = {

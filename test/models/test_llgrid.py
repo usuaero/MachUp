@@ -4,7 +4,7 @@
 import pytest
 import numpy as np
 import machup.geometry as geom
-import machup.models as mod
+import machup.llgrid as llgrid
 
 
 PLANE_DIR = "test/geometry/testairplanes/"
@@ -18,7 +18,7 @@ def single_wing_grid():
     """Get a LLGrid for the single_wing.json example."""
     filename = PLANE_DIR+"single_wing.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 
@@ -27,7 +27,7 @@ def small_wing_grid():
     """Get a LLGrid for the straight_wing_5sect.json example."""
     filename = PLANE_DIR+"straight_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 
@@ -36,7 +36,7 @@ def linear_wing_grid():
     """Get LLGrid w/ linear spacing using straight_wing_5sect.json example."""
     filename = PLANE_DIR+"straight_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane, cosine_spacing=False)
+    grid = llgrid.LLGrid(plane, cosine_spacing=False)
     return grid
 
 
@@ -45,7 +45,7 @@ def vertical_wing_grid():
     """Get a LLGrid for the vertical_wing_5sect.json example."""
     filename = PLANE_DIR+"vertical_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 
@@ -54,7 +54,7 @@ def swept_wing_grid():
     """Get a LLGrid from the swept_wing_5sect.json example."""
     filename = PLANE_DIR+"swept_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 
@@ -63,7 +63,7 @@ def tapered_wing_grid():
     """Get a LLGrid from the tapered_wing_5sect.json example."""
     filename = PLANE_DIR+"tapered_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 
@@ -72,7 +72,7 @@ def dihedral_sweep_wing_grid():
     """Get a LLGrid from the dihedral_sweep_wing.json example."""
     filename = PLANE_DIR+"dihedral_sweep_wing.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 
@@ -81,7 +81,7 @@ def aero_twist_wing_grid():
     """Get a LLGrid from the aero twist example."""
     filename = PLANE_DIR+"aerodynamic_twist_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 
@@ -90,7 +90,7 @@ def yoffset_wing_grid():
     """Get a LLGrid from the yoffset wing example."""
     filename = PLANE_DIR+"yoffset_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    grid = mod.LLGrid(plane)
+    grid = llgrid.LLGrid(plane)
     return grid
 
 

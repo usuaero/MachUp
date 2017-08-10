@@ -6,7 +6,7 @@ geometry module.
 """
 
 import machup.geometry as geom
-import machup.models as models
+import machup.llmodel as mod
 import numpy as np
 
 
@@ -84,7 +84,7 @@ def test_u2_simple_monowing():
                                  mix={"rudder": 1.})
 
     # Generate lifting-line model for airplane
-    myLLModel = models.LLModel(myPlane)
+    myLLModel = mod.LLModel(myPlane)
 
     # Solve the lifting-line model for the given condition
     controls = {

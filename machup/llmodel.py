@@ -13,6 +13,7 @@ LLModel
 """
 
 import numpy as np
+import machup.llgrid as grid
 
 
 class LLModel:
@@ -83,7 +84,7 @@ class LLModel:
     def __init__(self, plane, cosine_spacing=True):
         self._machup_compare = False
         self._num_vortices = plane.get_num_sections()
-        self._grid = LLGrid(plane, cosine_spacing)
+        self._grid = grid.LLGrid(plane, cosine_spacing)
         self._aero_data = {
             'v_loc': np.zeros((self._num_vortices, 3)),
             'u_inf': np.zeros(3),
