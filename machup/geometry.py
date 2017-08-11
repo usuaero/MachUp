@@ -945,7 +945,7 @@ class ControlSurface:
     """
     def __init__(self, dimensions=None):
         self._span_root = 0.
-        self._span_tip = 0.
+        self._span_tip = 1.
         self._chord_root = 0.
         self._chord_tip = 0.
         self._is_sealed = True

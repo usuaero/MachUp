@@ -22,6 +22,14 @@ def multisegment_wing_plane():
     return plane
 
 
+@pytest.fixture
+def no_control_surface_plane():
+    """Return a plane for the no_control_surace.json example."""
+    filename = "test/geometry/testairplanes/no_control_surface.json"
+    plane = geom.Airplane(inputfile=filename)
+    return plane
+
+
 def test_get_number_of_sections(single_wing_plane):
     assert single_wing_plane.get_num_sections() == 80
 
@@ -57,3 +65,13 @@ def test_multisegment_wing(multisegment_wing_plane):
     assert np.allclose(pos["left_inner"], l_in, rtol=0., atol=1e-12) is True
     assert np.allclose(pos["right_inner"], r_in, rtol=0., atol=1e-12) is True
     assert np.allclose(pos["right_outer"], r_out, rtol=0., atol=1e-12) is True
+
+
+def test_no_control_surf_specified(no_control_surface_plane):
+    segments = no_control_surface_plane.get_wingsegments()
+    for seg in segments:
+        span = seg.get_control_surface_span()
+        chord = seg.get_control_surface_chord()
+        mix = seg.get_control_mix()
+        assert span == (0., 1.)
+        assert chord == (0., 0.)
