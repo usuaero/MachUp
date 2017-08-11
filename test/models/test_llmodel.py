@@ -4,7 +4,7 @@
 import pytest
 import numpy as np
 import machup.geometry as geom
-import machup.llmodel as mod
+from machup import LLModel
 
 
 PLANE_DIR = "test/geometry/testairplanes/"
@@ -18,7 +18,7 @@ def single_wing_model():
     """Get a LLModel from the single_wing.json example."""
     filename = PLANE_DIR+"single_wing.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -27,7 +27,7 @@ def small_wing_model():
     """Get a LLModel from the straight_wing_5sect.json example."""
     filename = PLANE_DIR+"straight_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -36,7 +36,7 @@ def small_plane_model():
     """Get a LLModel from the straight_simple_plane.json example."""
     filename = PLANE_DIR+"straight_simple_plane.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -45,7 +45,7 @@ def vertical_wing_model():
     """Get a LLModel from the vertical_wing_5sect.json example."""
     filename = PLANE_DIR+"vertical_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -54,7 +54,7 @@ def swept_wing_model():
     """Get a LLModel from the swept_wing.json example."""
     filename = PLANE_DIR+"swept_wing.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -63,7 +63,7 @@ def tapered_wing_model():
     """Get a LLModel from the tapered_wing_5sect.json example."""
     filename = PLANE_DIR+"tapered_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -72,7 +72,7 @@ def washout_wing_model():
     """Get a LLModel from the washout_wing_5sect.json example."""
     filename = PLANE_DIR+"washout_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -81,7 +81,7 @@ def aero_twist_wing_model():
     """Get a LLModel from the aero twist example."""
     filename = PLANE_DIR+"aerodynamic_twist_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -90,7 +90,7 @@ def tapered_control_surface_model():
     """Get a LLModel from the tapered controls example."""
     filename = PLANE_DIR+"tapered_control_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -99,7 +99,7 @@ def yoffset_wing_model():
     """Get a LLModel from the yoffset wing example."""
     filename = PLANE_DIR+"yoffset_wing_5sect.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 
@@ -108,7 +108,7 @@ def v2_plane_model():
     """Get a LLModel from the test plane v2 example."""
     filename = PLANE_DIR+"test_plane_v2.json"
     plane = geom.Airplane(inputfile=filename)
-    model = mod.LLModel(plane)
+    model = LLModel(plane)
     return model
 
 

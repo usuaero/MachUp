@@ -5,7 +5,7 @@ Airplane object in python using the MachUp geometry module.
 """
 
 import machup.geometry as geom
-import machup.llmodel as mod
+from machup import LLModel
 import numpy as np
 
 
@@ -55,7 +55,7 @@ def test_u3_multisegment_wing():
                                   mix={"aileron": 1.})
 
     # Generate lifting-line model for airplane
-    my_llmodel = mod.LLModel(my_plane)
+    my_llmodel = LLModel(my_plane)
 
     # Solve the lifting-line model for the given condition
     controls = {
