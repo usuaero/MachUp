@@ -65,6 +65,7 @@ class LLGrid:
             'mixing_a': np.zeros(self._num_sections),
             'mixing_e': np.zeros(self._num_sections),
             'mixing_r': np.zeros(self._num_sections),
+            'mixing_f': np.zeros(self._num_sections),
             'Cm_d': np.zeros(self._num_sections),
             'int_chord2': np.zeros(self._num_sections)}
         self._update_data()
@@ -318,12 +319,14 @@ class LLGrid:
         mixing_a = self._data['mixing_a'][seg_slice]
         mixing_e = self._data['mixing_e'][seg_slice]
         mixing_r = self._data['mixing_r'][seg_slice]
+        mixing_f = self._data['mixing_f'][seg_slice]
 
-        m_a, m_e, m_r = seg.get_control_mix()
+        m_a, m_e, m_r, m_f = seg.get_control_mix()
 
         mixing_a[:] = m_a
         mixing_e[:] = m_e
         mixing_r[:] = m_r
+        mixing_f[:] = m_f
 
     def _calc_integral_chord2(self):
         # Computes the integral of the chord squared along the spanwise
@@ -598,5 +601,6 @@ class LLGrid:
         m_a = self._data["mixing_a"]
         m_e = self._data["mixing_e"]
         m_r = self._data["mixing_r"]
+        m_f = self._data["mixing_f"]
 
-        return m_a, m_e, m_r
+        return m_a, m_e, m_r, m_f

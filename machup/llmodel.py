@@ -65,7 +65,8 @@ class LLModel:
     controls = {
         "aileron": 10.,
         "elevator": 5.,
-        "rudder": 0.
+        "rudder": 0.,
+        "flap": 0.,
     }
     aero_state = {
         "V_mag": 10.,
@@ -220,11 +221,13 @@ class LLModel:
             delta_a = state.get("aileron", 0.)
             delta_e = state.get("elevator", 0.)
             delta_r = state.get("rudder", 0.)
-            mixing_a, mixing_e, mixing_r = self._grid.get_control_mix()
+            delta_f = state.get("flap", 0.)
+            mix_a, mix_e, mix_r, mix_f = self._grid.get_control_mix()
 
-            self._control_data["delta_flap"] = (delta_a*mixing_a +
-                                                delta_e*mixing_e +
-                                                delta_r*mixing_r)*np.pi/180.
+            self._control_data["delta_flap"] = (delta_a*mix_a +
+                                                delta_e*mix_e +
+                                                delta_r*mix_r +
+                                                delta_f*mix_f)*np.pi/180.
 
             self._compute_deflection_efficiency()
 
@@ -259,7 +262,7 @@ class LLModel:
             sideslip angle are assumed to be zero and v_mag is assumed
             to be 10.
         control_state : dict
-            Contains aileron, elevator, and rudder deflections in
+            Contains aileron, elevator, rudder, and flap deflections in
             degrees. Dictionary keys are "aileron", "elevator", and
             "rudder". If no control_state is specified than all control
             surfaces are assumed to be at zero deflection.

@@ -526,16 +526,6 @@ class WingSegment:
             "mounting_angle": 0.,
             "washout": 0
         }
-        # self._control_data = {
-        #     "left_span": 0.,
-        #     "right_span": 0.,
-        #     "left_chord": 0.,
-        #     "right_chord": 0.,
-        #     "mix_aileron": 0.,
-        #     "mix_elevator": 0.,
-        #     "mix_rudder": 0.,
-        #     "is_sealed": 0.
-        # }
         self._root_airfoil = None
         self._tip_airfoil = None
         self._control_surface = None
@@ -827,15 +817,16 @@ class WingSegment:
         Returns
         -------
         tuple
-            The aileron, elevator, and rudder mixing respectively.
+            The aileron, elevator, rudder, and flap mixing respectively.
 
         """
         control_mix = self._control_surface.get_control_mix(self._side)
         mix_aileron = control_mix.get("aileron", 0.)
         mix_elevator = control_mix.get("elevator", 0.)
         mix_rudder = control_mix.get("rudder", 0.)
+        mix_flap = control_mix.get("flap", 0.)
 
-        return mix_aileron, mix_elevator, mix_rudder
+        return mix_aileron, mix_elevator, mix_rudder, mix_flap
 
     def is_control_surface_sealed(self):
         """Check if control surface is sealed.
@@ -974,6 +965,8 @@ class ControlSurface:
                 self._mix["elevator"] = mix_dict["elevator"]
             if "rudder" in mix_dict:
                 self._mix["rudder"] = mix_dict["rudder"]
+            if "flap" in mix_dict:
+                self._mix["flap"] = mix_dict["flap"]
 
     def get_control_span(self):
         """Get the spanwise location of control surface,
@@ -1024,6 +1017,8 @@ class ControlSurface:
                 segment_mix["rudder"] = self._mix["rudder"]
             else:
                 segment_mix["rudder"] = -self._mix["rudder"]
+        if "flap" in self._mix:
+            segment_mix["flap"] = self._mix["flap"]
 
         return segment_mix
 

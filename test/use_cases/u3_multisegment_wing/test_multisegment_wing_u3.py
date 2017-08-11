@@ -31,7 +31,7 @@ def test_u3_multisegment_wing():
 
     main_inboard.control_surface(percent_span=[0.2, 0.9],
                                  percent_chord=0.25,
-                                 mix={"elevator": 1.})
+                                 mix={"flap": 1.})
 
     main_outboard = my_plane.add_wing("main_outboard",
                                       connect_to="main_inboard",
@@ -60,7 +60,7 @@ def test_u3_multisegment_wing():
     # Solve the lifting-line model for the given condition
     controls = {
         "aileron": 4.,
-        "elevator": 7.,
+        "flap": 7.,
     }
     aero_state = {
         "V_mag": 100.,

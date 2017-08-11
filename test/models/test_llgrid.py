@@ -334,7 +334,7 @@ def test_grid_flap_effectiveness(small_wing_grid):
 
 
 def test_grid_get_control_mixing(small_wing_grid):
-    m_a, m_e, m_r = small_wing_grid.get_control_mix()
+    m_a, m_e, m_r, m_f = small_wing_grid.get_control_mix()
 
     test_a = np.zeros(10)
     test_a[:5] = -1.
@@ -343,10 +343,12 @@ def test_grid_get_control_mixing(small_wing_grid):
     test_e[:5] = 1.
     test_e[5:] = 1.
     test_r = np.zeros(10)
+    test_f = np.zeros(10)
 
     assert np.allclose(test_a, m_a, rtol=0., atol=1e-13) is True
     assert np.allclose(test_e, m_e, rtol=0., atol=1e-13) is True
     assert np.allclose(test_r, m_r, rtol=0., atol=1e-13) is True
+    assert np.allclose(test_f, m_f, rtol=0., atol=1e-13) is True
 
 
 def test_grid_get_cm_delta(small_wing_grid):
