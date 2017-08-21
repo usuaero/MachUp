@@ -57,6 +57,15 @@ class LLGrid:
             'Cm_L0': np.zeros(self._num_sections),
             'Cm_L0_left': np.zeros(self._num_sections),
             'Cm_L0_right': np.zeros(self._num_sections),
+            'CD0': np.zeros(self._num_sections),
+            'CD0_left': np.zeros(self._num_sections),
+            'CD0_right': np.zeros(self._num_sections),
+            'CD1': np.zeros(self._num_sections),
+            'CD1_left': np.zeros(self._num_sections),
+            'CD1_right': np.zeros(self._num_sections),
+            'CD2': np.zeros(self._num_sections),
+            'CD2_left': np.zeros(self._num_sections),
+            'CD2_right': np.zeros(self._num_sections),
             'washout': np.zeros(self._num_sections),
             'u_a': np.zeros((self._num_sections, 3)),
             'u_n': np.zeros((self._num_sections, 3)),
@@ -258,34 +267,56 @@ class LLGrid:
         al0_right = right_airfoil.get_zero_lift_alpha()
         cma_right = right_airfoil.get_moment_slope()
         cml0_right = right_airfoil.get_zero_lift_moment()
+        cd0_left, cd1_left, cd2_left = left_airfoil.get_drag_coefficients()
+        cd0_right, cd1_right, cd2_right = right_airfoil.get_drag_coefficients()
 
         self._data["CL_a"][seg_slice] = self._interp_accross_segment(seg_slice,
                                                                      cla_left,
                                                                      cla_right)
         self._data["CL_a_left"][seg_slice] = cla_left
         self._data["CL_a_right"][seg_slice] = cla_right
+
         self._data["alpha_L0"][seg_slice] = self._interp_accross_segment(seg_slice,
                                                                          al0_left,
                                                                          al0_right)
         self._data["alpha_L0_left"][seg_slice] = al0_left
         self._data["alpha_L0_right"][seg_slice] = al0_right
+
         self._data["Cm_a"][seg_slice] = self._interp_accross_segment(seg_slice,
                                                                      cma_left,
                                                                      cma_right)
         self._data["Cm_a_left"][seg_slice] = cma_left
         self._data["Cm_a_right"][seg_slice] = cma_right
+
         self._data["Cm_L0"][seg_slice] = self._interp_accross_segment(seg_slice,
                                                                       cml0_left,
                                                                       cml0_right)
         self._data["Cm_L0_left"][seg_slice] = cml0_left
         self._data["Cm_L0_right"][seg_slice] = cml0_right
 
+        self._data["CD0"][seg_slice] = self._interp_accross_segment(seg_slice,
+                                                                    cd0_left,
+                                                                    cd0_right)
+        self._data["CD0_left"][seg_slice] = cd0_left
+        self._data["CD0_right"][seg_slice] = cd0_right
+
+        self._data["CD1"][seg_slice] = self._interp_accross_segment(seg_slice,
+                                                                    cd1_left,
+                                                                    cd1_right)
+        self._data["CD1_left"][seg_slice] = cd1_left
+        self._data["CD1_right"][seg_slice] = cd1_right
+
+        self._data["CD2"][seg_slice] = self._interp_accross_segment(seg_slice,
+                                                                    cd2_left,
+                                                                    cd2_right)
+        self._data["CD2_left"][seg_slice] = cd2_left
+        self._data["CD2_right"][seg_slice] = cd2_right
+
     def _calc_control_surfaces(self, seg, seg_slice):
         # Sets up arrays that describe control surface properties
         # I know this is pretty messy as it currently stands but it is
         # all going to get rewritten anyway in the next version.
         # pylint: disable=too-many-locals
-        self._calc_control_mixing(seg, seg_slice)
         flap_eff = self._data['flap_eff'][seg_slice]
         cm_d = self._data['Cm_d'][seg_slice]
         spacing = self._data["spacing_cp"][seg_slice]
@@ -297,6 +328,13 @@ class LLGrid:
 
         control_chord_slope = (chord_end-chord_start)/(surf_end-surf_start)
         cf_c = (spacing-surf_start)*control_chord_slope+chord_start
+
+        mixing_a = self._data['mixing_a'][seg_slice]
+        mixing_e = self._data['mixing_e'][seg_slice]
+        mixing_r = self._data['mixing_r'][seg_slice]
+        mixing_f = self._data['mixing_f'][seg_slice]
+
+        m_a, m_e, m_r, m_f = seg.get_control_mix()
 
         for i in range(num_sections):
             # if control point is covered by control surface, then
@@ -314,19 +352,10 @@ class LLGrid:
                     eta_h *= 0.8
                 flap_eff[i] = eta_h*eps_f
                 cm_d[i] = (np.sin(2.*theta_f)-2.*np.sin(theta_f))/4.
-
-    def _calc_control_mixing(self, seg, seg_slice):
-        mixing_a = self._data['mixing_a'][seg_slice]
-        mixing_e = self._data['mixing_e'][seg_slice]
-        mixing_r = self._data['mixing_r'][seg_slice]
-        mixing_f = self._data['mixing_f'][seg_slice]
-
-        m_a, m_e, m_r, m_f = seg.get_control_mix()
-
-        mixing_a[:] = m_a
-        mixing_e[:] = m_e
-        mixing_r[:] = m_r
-        mixing_f[:] = m_f
+                mixing_a[i] = m_a
+                mixing_e[i] = m_e
+                mixing_r[i] = m_r
+                mixing_f[i] = m_f
 
     def _calc_integral_chord2(self):
         # Computes the integral of the chord squared along the spanwise
@@ -417,6 +446,45 @@ class LLGrid:
 
         """
         return self._data["CL_a_right"]
+
+    def get_drag_coefficients(self):
+        """Get airfoil drag coefficients of segment that section lays on.
+
+        Returns
+        -------
+        numpy array
+            Array of airfoil drag coefficients for each section.
+
+        """
+        return (self._data["CD0_left"],
+                self._data["CD1_left"],
+                self._data["CD2_left"])
+
+    def get_right_drag_coeff(self):
+        """Get right airfoil drag coefficients of segment that section lays on.
+
+        Returns
+        -------
+        numpy array
+            Array of right airfoil drag coefficients for each section.
+
+        """
+        return (self._data["CD0_right"],
+                self._data["CD1_right"],
+                self._data["CD2_right"])
+
+    def get_left_drag_coeff(self):
+        """Get left airfoil drag coefficients of segment that section lays on.
+
+        Returns
+        -------
+        numpy array
+            Array of left airfoil drag coefficients for each section.
+
+        """
+        return (self._data["CD0_left"],
+                self._data["CD1_left"],
+                self._data["CD2_left"])
 
     def get_moment_slopes(self):
         """Get linearly interpolated moment slopes at each wing section.

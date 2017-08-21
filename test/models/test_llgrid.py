@@ -9,9 +9,6 @@ from machup import LLGrid
 
 PLANE_DIR = "test/geometry/testairplanes/"
 
-# Because Machup doesn't use induced velocities in Moment calculations
-COMPARING_WITH_MACHUP = False
-
 
 @pytest.fixture
 def single_wing_grid():
@@ -337,11 +334,11 @@ def test_grid_get_control_mixing(small_wing_grid):
     m_a, m_e, m_r, m_f = small_wing_grid.get_control_mix()
 
     test_a = np.zeros(10)
-    test_a[:5] = -1.
-    test_a[5:] = 1.
+    test_a[1] = -1.
+    test_a[8] = 1.
     test_e = np.zeros(10)
-    test_e[:5] = 1.
-    test_e[5:] = 1.
+    test_e[1] = 1.
+    test_e[8] = 1.
     test_r = np.zeros(10)
     test_f = np.zeros(10)
 

@@ -928,6 +928,19 @@ class Airfoil:
         """
         return self._properties["Cm_L0"]
 
+    def get_drag_coefficients(self):
+        """Get the drag coefficients of the Airfoil.
+
+        Returns
+        -------
+        tuple
+            The drag coefficients of the Airfoil.
+
+        """
+        return (self._properties["CD_0"],
+                self._properties["CD_L"],
+                self._properties["CD_L2"])
+
 
 class ControlSurface:
     """Defines the dimensions and properties of wing control surface.

@@ -95,18 +95,13 @@ class LLModel:
             'yaw_rate': 0.,
         }
         self._control_data = {
-            'delta_flap': np.zeros(self._num_vortices),
+            'delta_flap': np.zeros(self._num_vortices),  # FIX:changeforclarity
             'deflection_eff': np.zeros(self._num_vortices)
         }
         self._results = {
-            "FX": 0.,
-            "FY": 0.,
-            "FZ": 0.,
-            "FL": 0.,
-            "FD": 0.,
-            "l": 0.,
-            "m": 0.,
-            "n": 0.
+            'inviscid': {},
+            'viscous': {},
+            'total': {}
         }
         self._pre_calcs = {
             "rj1i": np.zeros((self._num_vortices, self._num_vortices, 3)),
@@ -117,6 +112,8 @@ class LLModel:
         }
         self._vji = None  # np.zeros((self._num_vortices,self._num_vortices,3))
         self._v_i = None  # np.zeros((self._num_vortices, 3))
+        self._alphas = None
+        self._dyn_pressures = None
         self._forces = None  # np.zeros((self._num_vortices, 3))
         self._moments = None  # np.zeros((self._num_vortices, 3))
         self._gamma = None  # np.zeros(self._num_vortices)
@@ -387,11 +384,24 @@ class LLModel:
     def _compute_velocities(self):
         # Computes the total velocity at each control point using the
         # local input velocities and the local induced velocities.
+        # Also computes the local angle of attack.
+        rho = self._aero_data["rho_loc"]
         vji = self._vji
         gamma = self._gamma
         v_loc = self._aero_data["v_loc"]
+        u_a = self._grid.get_unit_axial_vectors()
+        u_n = self._grid.get_unit_normal_vectors()
 
         self._v_i = v_loc + np.einsum('ji,ijk->ik', gamma[:, None], vji)
+        self._alphas = np.arctan2(np.einsum('ij,ij->i', self._v_i, u_n),
+                                  np.einsum('ij,ij->i', self._v_i, u_a))
+
+        v_i_mag = np.sqrt(np.einsum('ij,ij->i', self._v_i, self._v_i))
+        # use the following v_i_mag to compare with fortran version
+        if self._machup_compare:
+            v_loc = self._aero_data["v_loc"]
+            v_i_mag = np.linalg.norm(v_loc, axis=1)
+        self._dyn_pressures = 0.5*rho*v_i_mag*v_i_mag
 
     def _compute_forces(self):
         # Computes the aerodynamic force at each control point.
@@ -409,49 +419,117 @@ class LLModel:
         lift = force_total-drag*u_inf
         lift = np.sqrt(lift[0]*lift[0]+lift[1]*lift[1]+lift[2]*lift[2])
 
-        self._results["FX"] = force_total[0]
-        self._results["FY"] = force_total[1]
-        self._results["FZ"] = force_total[2]
-        self._results["FL"] = lift
-        self._results["FD"] = drag
+        self._results["inviscid"]["FX"] = force_total[0]
+        self._results["inviscid"]["FY"] = force_total[1]
+        self._results["inviscid"]["FZ"] = force_total[2]
+        self._results["inviscid"]["FL"] = lift
+        self._results["inviscid"]["FD"] = drag
+
+        # compute parasitic forces
+        v_i_mag = np.sqrt(np.einsum('ij,ij->i', v_i, v_i))
+        if self._machup_compare:
+            # use the uniform freestream velocity to compare with fortran
+            # version
+            v_loc = self._aero_data["v_loc"]
+            v_inf_mag = np.linalg.norm(v_loc, axis=1)
+        else:
+            v_inf_mag = v_i_mag
+
+        cd = self._local_parasitic_drag_coefficient()
+        delta_s = self._grid.get_section_areas()
+        f_parasite_mag = 0.5*rho*v_inf_mag*v_inf_mag*cd*delta_s
+        self._f_parasite = f_parasite_mag[:, None]*v_i/v_i_mag[:, None]
+
+        f_parasite_total = np.sum(self._f_parasite, axis=0)
+        drag_p = np.dot(f_parasite_total, u_inf)
+        lift_p = f_parasite_total - drag_p*u_inf
+        lift_p = np.sqrt(lift_p[0]*lift_p[0] +
+                         lift_p[1]*lift_p[1] +
+                         lift_p[2]*lift_p[2])
+
+        self._results["viscous"]["FX"] = f_parasite_total[0]
+        self._results["viscous"]["FY"] = f_parasite_total[1]
+        self._results["viscous"]["FZ"] = f_parasite_total[2]
+        self._results["viscous"]["FL"] = lift_p
+        self._results["viscous"]["FD"] = drag_p
+
+        # compute total forces
+        self._results["FX"] = force_total[0] + f_parasite_total[0]
+        self._results["FY"] = force_total[1] + f_parasite_total[1]
+        self._results["FZ"] = force_total[2] + f_parasite_total[2]
+        self._results["FL"] = lift + lift_p
+        self._results["FD"] = drag + drag_p
+
+    def _local_parasitic_drag_coefficient(self):
+        # computes the local parasitic drag coefficient based on local
+        # velocities.
+        alpha_loc = self._alphas
+        delta_control_surf = self._control_data["delta_flap"]
+
+        if self._machup_compare:
+            cla_left = self._grid.get_left_lift_slopes()
+            cla_right = self._grid.get_right_lift_slopes()
+            al0_left = self._grid.get_left_zero_lift_alpha()
+            al0_right = self._grid.get_right_zero_lift_alpha()
+            spacing = self._grid.get_cp_spacing()
+
+            cl_left = cla_left*(alpha_loc - al0_left)
+            cl_right = cla_right*(alpha_loc - al0_right)
+            cl = cl_left + spacing*(cl_right - cl_left)
+
+            cd0_l, cd_l_l, cd_l2_l = self._grid.get_left_drag_coeff()
+            cd0_r, cd_l_r, cd_l2_r = self._grid.get_right_drag_coeff()
+
+            cd_left = cd0_l + cd_l_l*cl + cd_l2_l*cl*cl
+            cd_right = cd0_r + cd_l_r*cl + cd_l2_r*cl*cl
+            cd = cd_left + spacing*(cd_right - cd_left)
+        else:
+            cl_a = self._grid.get_lift_slopes()
+            al0 = self._grid.get_zero_lift_alpha()
+            cl = cl_a*(alpha_loc - al0)
+            cd0, cd1, cd2 = self._grid.get_drag_coefficients()
+            cd = cd0 + cd1*cl + cd2*cl*cl
+
+        cd += 0.002 * np.abs(delta_control_surf)*180./np.pi  # rough estimate for flaps
+
+        return cd
 
     def _compute_moments(self):
         # Computes the aerodynamic moment at each control point.
-        rho = self._aero_data["rho_loc"]
         r_cp = self._grid.get_control_point_pos()
         u_s = self._grid.get_unit_spanwise_vectors()
         v_i = self._v_i
         cg_location = self._grid.get_cg_location()
         force = self._forces
         int_chord2 = self._grid.get_integral_chord2()
-        c_m = self._local_moment_coefficient(v_i)
+        c_m = self._local_moment_coefficient()
 
-        v_i_mag = np.sqrt(np.einsum('ij,ij->i', v_i, v_i))
-        # use the following v_i_mag to compare with fortran version
-        if self._machup_compare:
-            v_loc = self._aero_data["v_loc"]
-            v_i_mag = np.linalg.norm(v_loc, axis=1)
-        dyn_pressure = -0.5*rho*v_i_mag*v_i_mag
-
-        self._moments = (dyn_pressure*c_m*int_chord2)[:, None]*u_s
-        self._moments += np.cross((r_cp - cg_location), force)
+        r_cg = r_cp - cg_location
+        self._moments = (-self._dyn_pressures*c_m*int_chord2)[:, None]*u_s
+        self._moments += np.cross(r_cg, force)
         moment_total = np.sum(self._moments, axis=0)
 
-        self._results["l"] = moment_total[0]
-        self._results["m"] = moment_total[1]
-        self._results["n"] = moment_total[2]
+        self._results["inviscid"]["l"] = moment_total[0]
+        self._results["inviscid"]["m"] = moment_total[1]
+        self._results["inviscid"]["n"] = moment_total[2]
 
-    def _local_moment_coefficient(self, v_i):
+        moment_parasite = np.cross(r_cg, self._f_parasite)
+        moment_total_p = np.sum(moment_parasite, axis=0)
+
+        self._results["viscous"]["l"] = moment_total_p[0]
+        self._results["viscous"]["m"] = moment_total_p[1]
+        self._results["viscous"]["n"] = moment_total_p[2]
+
+        self._results["l"] = moment_total[0] + moment_total_p[0]
+        self._results["m"] = moment_total[1] + moment_total_p[1]
+        self._results["n"] = moment_total[2] + moment_total_p[2]
+
+    def _local_moment_coefficient(self):
         # computes local moment coefficient based on local velocities
-        u_a = self._grid.get_unit_axial_vectors()
-        u_n = self._grid.get_unit_normal_vectors()
         delta_c = self._control_data["delta_flap"]
         cm_a, cm_l0, cm_d = self._grid.get_moment_slopes()
         alpha_l0 = self._grid.get_zero_lift_alpha()
-
-        # pylint: disable=no-member
-        alpha = np.arctan(np.einsum('ij,ij->i', v_i, u_n) /
-                          np.einsum('ij,ij->i', v_i, u_a))
+        alpha = self._alphas
 
         if self._machup_compare:
             # The following matches how the fortran version of machup

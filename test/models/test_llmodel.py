@@ -114,6 +114,7 @@ def v2_plane_model():
 
 def test_linear_solver_forces(small_wing_model):
     results = small_wing_model.solve(stype="linear")
+    results = results["inviscid"]
     machup = np.array([-1.31741502082177E-003,
                        0.00000000000000E+000,
                        -1.75579916601760E-001,
@@ -131,6 +132,7 @@ def test_linear_solver_forces(small_wing_model):
 
 def test_linear_solver_moments(small_wing_model):
     results = small_wing_model.solve(stype="linear")
+    results = results["inviscid"]
     if COMPARING_WITH_MACHUP:
         test = np.array([0.00000000000000E+000,
                          1.86555519922892E-002,
@@ -155,6 +157,7 @@ def test_linear_solver_elevator(small_wing_model):
         "rudder": 0.
     }
     results = small_wing_model.solve(stype="linear", control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([-3.17807038650184E-003,
                      0.00000000000000E+000,
@@ -186,6 +189,7 @@ def test_linear_solver_aileron(small_wing_model):
         "rudder": 0.
     }
     results = small_wing_model.solve(stype="linear", control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([-4.65134818533851E-003,
                      0.00000000000000E+000,
@@ -217,6 +221,7 @@ def test_linear_solver_elevon(small_wing_model):
         "rudder": 0.
     }
     results = small_wing_model.solve(stype="linear", control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([-6.20212601069838E-003,
                      0.00000000000000E+000,
@@ -250,6 +255,7 @@ def test_linear_solver_alpha(small_wing_model):
     }
     results = small_wing_model.solve(stype="linear",
                                      aero_state=aero_state)
+    results = results["inviscid"]
 
     test = np.array([3.66867172969953E-002,
                      0.00000000000000E+000,
@@ -298,6 +304,7 @@ def test_linear_solver_alpha_2(small_wing_model):
     results = small_wing_model.solve(stype="linear",
                                      aero_state=aero_state,
                                      control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([3.38154734344758E-002,
                      0.00000000000000E+000,
@@ -340,6 +347,7 @@ def test_linear_solver_beta(small_wing_model):
     results = small_wing_model.solve(stype="linear",
                                      aero_state=aero_state,
                                      control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([-1.33213186788693E-003,
                      0.00000000000000E+000,
@@ -386,6 +394,7 @@ def test_linear_solver_planeV1(small_plane_model):
     results = small_plane_model.solve(stype="linear",
                                       aero_state=aero_state,
                                       control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([-7.59542201946415E-003,
                      -1.85103255176173E-019,
@@ -428,6 +437,7 @@ def test_linear_solver_planeV1_2(small_plane_model):
     results = small_plane_model.solve(stype="linear",
                                       aero_state=aero_state,
                                       control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([4.32448388743232E-002,
                      -2.33213786289756E-003,
@@ -470,6 +480,7 @@ def test_linear_solver_planeV2(v2_plane_model):
     results = v2_plane_model.solve(stype="linear",
                                    aero_state=aero_state,
                                    control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([1.66324304012235E-002,
                      -3.02789067480966E-002,
@@ -513,6 +524,7 @@ def test_linear_solver_planeV2_2(v2_plane_model):
     results = v2_plane_model.solve(stype="linear",
                                    aero_state=aero_state,
                                    control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([1.59681145902187E-002,
                      -3.67421278805487E-002,
@@ -559,6 +571,7 @@ def test_linear_solver_v_stab(vertical_wing_model):
     results = vertical_wing_model.solve(stype="linear",
                                         aero_state=aero_state,
                                         control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([1.14762294095641E-002,
                      -2.46361834946595E-001,
@@ -595,6 +608,7 @@ def test_linear_solver_sweep(swept_wing_model):
     }
     results = swept_wing_model.solve(stype="linear",
                                      aero_state=aero_state)
+    results = results["inviscid"]
 
     test = np.array([7.87330444526774E-003,
                      2.60208521396521E-018,
@@ -642,6 +656,7 @@ def test_linear_solver_taper(tapered_wing_model):
     }
     results = tapered_wing_model.solve(stype="linear",
                                        aero_state=aero_state)
+    results = results["inviscid"]
 
     test = np.array([2.13070222154639E-002,
                      0.00000000000000E+000,
@@ -682,6 +697,7 @@ def test_linear_solver_washout(washout_wing_model):
     }
     results = washout_wing_model.solve(stype="linear",
                                        aero_state=aero_state)
+    results = results["inviscid"]
 
     test = np.array([2.44572906233143E-002,
                      0.00000000000000E+000,
@@ -722,6 +738,7 @@ def test_linear_solver_aero_twist(aero_twist_wing_model):
     }
     results = aero_twist_wing_model.solve(stype="linear",
                                           aero_state=aero_state)
+    results = results["inviscid"]
 
     test = np.array([-4.36302648170593E-004,
                      0.00000000000000E+000,
@@ -762,6 +779,7 @@ def test_linear_solver_yoffset(yoffset_wing_model):
     }
     results = yoffset_wing_model.solve(stype="linear",
                                        aero_state=aero_state)
+    results = results["inviscid"]
 
     test = np.array([-1.69234613071813E-003,
                      0.00000000000000E+000,
@@ -805,6 +823,7 @@ def test_linear_solver_roll_rate(small_wing_model):
     }
     results = small_wing_model.solve(stype="linear",
                                      aero_state=aero_state)
+    results = results["inviscid"]
 
     test = np.array([-0.00017422282851392923,
                      0.00000000000000E+000,
@@ -881,6 +900,7 @@ def test_linear_solver_tapered_controls(tapered_control_surface_model):
     results = tapered_control_surface_model.solve(stype="linear",
                                                   aero_state=aero_state,
                                                   control_state=controls)
+    results = results["inviscid"]
 
     test = np.array([-3.93879262490376E-003,
                      0.00000000000000E+000,
@@ -933,3 +953,46 @@ def test_local_velocity_input(small_wing_model):
     assert np.allclose(v_loc, local_state[:, 1:], rtol=0., atol=1e-12) is True
     assert np.allclose(rho_loc, local_state[:, 0], rtol=0., atol=1e-12) is True
     assert np.allclose(u_mean, u_test, rtol=0., atol=1e-12) is True
+
+
+def test_linear_solver_parasitic_drag(small_wing_model):
+    controls = {
+        "aileron": 5.,
+        "elevator": 0.,
+        "rudder": 0.
+    }
+    aero_state = {
+        "V_mag": 10.,
+        "alpha": 2.,
+        "beta": 3.,
+        "rho": 1.
+    }
+    results = small_wing_model.solve(stype="linear",
+                                     aero_state=aero_state,
+                                     control_state=controls)
+    viscous = results["viscous"]
+
+    test = np.array([-7.95414652336687E-003,
+                     -4.16606101317243E-004,
+                     -1.39324456257965E-004,
+                     3.46531541326986E-005,
+                     5.57297825031859E-005,
+                     -4.69497392909465E-005])
+
+    test[:] *= 0.5*100.*8.
+    test[3] *= 8.
+    test[5] *= 8.
+    if not COMPARING_WITH_MACHUP:
+        test[0] = -3.1837759479959034
+        test[1] = -0.16675332811902405
+        test[2] = -0.055761364330704402
+        test[3] = 0.11092841632342179
+        test[4] = 0.022304545732281762
+        test[5] = -0.14601880703495401
+
+    assert np.allclose(viscous["FX"], test[0], rtol=0., atol=1e-12) is True
+    assert np.allclose(viscous["FY"], test[1], rtol=0., atol=1e-12) is True
+    assert np.allclose(viscous["FZ"], test[2], rtol=0., atol=1e-12) is True
+    assert np.allclose(viscous["l"], test[3], rtol=0., atol=1e-12) is True
+    assert np.allclose(viscous["m"], test[4], rtol=0., atol=1e-12) is True
+    assert np.allclose(viscous["n"], test[5], rtol=0., atol=1e-12) is True
