@@ -34,7 +34,7 @@ def test_u3_multisegment_wing():
                                  mix={"flap": 1.})
 
     main_outboard = my_plane.add_wing("main_outboard",
-                                      connect_to="main_inboard",
+                                      connect_to=("main_inboard", "tip"),
                                       semispan=2.,
                                       root_chord=1.,
                                       tip_chord=0.6,
