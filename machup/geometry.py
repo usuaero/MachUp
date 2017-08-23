@@ -23,10 +23,10 @@ ControlSurface
 
 """
 
-import os
 from collections import OrderedDict
 import json
 import numpy as np
+import machup.helpers
 
 
 class Airplane:
@@ -69,13 +69,10 @@ class Airplane:
         if inputfile:
             self._buildfrominputfile(inputfile)
 
-    def _buildfrominputfile(self, filename):
+    def _buildfrominputfile(self, filepath):
         # Construct airplane from information in .json file
-        if not os.path.isfile(filename):
-            print('Error: Connot find file "{0}". Make sure'.format(filename))
-            print(' the path is correct and the file is accessible.')
-            raise IOError(filename)
-        with open(filename) as file:
+        machup.helpers.check_valid_filepath(filepath)
+        with open(filepath) as file:
             data = json.load(file, object_pairs_hook=OrderedDict)
             self.name = data["plane"]["name"]
             self._cg_loc[0] = data["plane"]["CGx"]
