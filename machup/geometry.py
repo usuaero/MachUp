@@ -114,9 +114,7 @@ class Airplane:
                              washout=wing_dict["washout"],
                              root_chord=wing_dict["root_chord"],
                              tip_chord=wing_dict["tip_chord"],
-                             airfoils=wing_dict["airfoils"],
-                             grid=wing_dict["grid"],
-                             control=wing_dict["control"])
+                             grid=wing_dict["grid"])
 
         # add airfoils to wing
         airfoils = list(wing_dict["airfoils"])
@@ -557,17 +555,8 @@ class WingSegment:
         self._dimensions["mounting_angle"] = dims.get("mount_angle", 0.)
         self._dimensions["washout"] = dims.get("washout", 0.)
         self._num_sections = dims.get("grid", 40)
-        if "aifoils" in dims:
-            airfoils = list(dims["airfoils"].keys())
-            if len(airfoils) > 1:
-                self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
-                self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[1]])
-            else:
-                self._root_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
-                self._tip_airfoil = Airfoil(dims["airfoils"][airfoils[0]])
-        else:
-            self._root_airfoil = Airfoil()
-            self._tip_airfoil = Airfoil()
+        self._root_airfoil = Airfoil()
+        self._tip_airfoil = Airfoil()
 
     def connect_to(self, parent, at):
         """Define a connection between WingSegment and a "parent" geometry.
