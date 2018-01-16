@@ -21,7 +21,7 @@ class LLModel:
 
     The LLModel implements a modern numerical lifting line algorithm
     that models the aircraft lifting surfaces as a collection of
-    horseshoe vortices. This  allows for a solution of the flow field
+    horseshoe vortices. This allows for a solution of the flow field
     and the corresponding forces and moments to be rapidly obtained.
     For further explanation, please refer to references found below.
 
@@ -36,6 +36,9 @@ class LLModel:
     plane : machup.plane
         Plane object which provides necessary geometry information to
         lifting line algorithm.
+
+    cosine_spacing : bool
+        Passed into LLGrid class to set how the grid spacing is handled.
 
     Returns
     -------
@@ -55,29 +58,30 @@ class LLModel:
     --------
     A simple use case is shown below
 
-    import machup.geometry
-    import machup.models
+    import machup.geometry as geom
+    from machup import LLModel
 
-    filename = "myAirplane.json"
-    myAirplane = machup.geometry.Airplane(inputfile=filename)
-    model = machup.models.LLModel(myAirplane)
 
+    # Generate airplane from file
+    filename = "path/to/file/file_name.json"
+    myPlane = geom.Airplane(inputfile=filename)
+
+    # Generate lifting-line model for airplane
+    myLLModel = LLModel(myPlane)
+
+    # Solve the lifting-line model for the given condition
     controls = {
         "aileron": 10.,
         "elevator": 5.,
-        "rudder": 0.,
-        "flap": 0.,
     }
     aero_state = {
-        "V_mag": 10.,
+        "V_mag": 100.,
         "alpha": 5.,
-        "beta": 0.,
         "rho": 1.
     }
-
-    results = model.solve(stype="linear",
-                          control_state=controls,
-                          aero_state=aero_state)
+    results = myLLModel.solve(stype="linear",
+                              control_state=controls,
+                              aero_state=aero_state)
 
     """
 
@@ -249,8 +253,13 @@ class LLModel:
             Specifies the type of solution. ("linear" or "nonlinear")
         aero_state : dict
             Contains angle of attack, sideslip angle, velocity
-            magnitude, and air density. Dictionary keys for these are
-            "alpha", "beta", "v_mag", and "rho" respectively. Note that
+            magnitude, air density, roll rate, pitch rate, and yaw rate.
+            Dictionary keys for these are "alpha", "beta", "v_mag", "rho",
+            roll_rate, pitch_rate, and yaw_rate respectively. Additionaly,
+            in lieu of the previous aerodynamic parameters a local state
+            array containing the local freestream density and velocity at
+            each control point may be passed in through the same dictionary.
+            The key for this array is "local_state". Note that, in both cases,
             the units on density must be consistent with v_mag and the
             units used in dimensioning the Plane object. For example,
             if the plane dimensions are in feet, than v_mag should be
@@ -270,7 +279,10 @@ class LLModel:
             Python dictionary containing the resulting forces and
             moments about the X, Y, and Z axis in the standard
             body-fixed coordinate system. Dictionary keys are "FX",
-            "FY", "FZ", "l", "m", and "n".
+            "FY", "FZ", "l", "m", and "n" for the total (inviscid and
+            viscous forces) forces and moments. Additionaly, the keys
+            "inviscid" and "viscous" may be used to access the individual
+            contributions.
 
         Raises
         ------

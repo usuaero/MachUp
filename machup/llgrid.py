@@ -20,6 +20,10 @@ class LLGrid:
         Plane object that contains all of the necessary information
         about aircraft geometry.
 
+    cosine_spacing : bool
+        Sets spacing of control points along wing segments as either
+        cosine spacing or linear spacing.
+
     Returns
     -------
     LLGrid
