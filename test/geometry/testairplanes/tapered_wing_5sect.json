@@ -16,9 +16,9 @@
 	"CGz": 0.0
 },
 "reference": {
-	"area": 20.0,
-	"longitudinal_length": 2.0,
-	"lateral_length": 10.0
+	"area": 6.0,
+	"longitudinal_length": 1.0,
+	"lateral_length": 8.0
 },
 "condition": {
 	"alpha": 4.0,
@@ -47,13 +47,13 @@
 			"dz" : 0.0,
             "yoffset" : 0.0
 		},
-		"span": 5.0,
-		"sweep": 45.0,
+		"span": 4.0,
+		"sweep": 0.0,
 		"dihedral": 0.0,
 		"mounting_angle": 0.0,
 		"washout": 0.0,
-		"root_chord": 2.0,
-		"tip_chord":  2.0,
+		"root_chord": 1.0,
+		"tip_chord":  0.5,
         "airfoils" : {
             "NACA_0010"	:	{	
             "properties"	:	{	

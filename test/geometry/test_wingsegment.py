@@ -12,8 +12,21 @@ def straight_segment():
     """Returns a straight WingSegment with root at origin"""
     with open("test/geometry/testwings/wing_0.json") as file:
         wing_data = json.load(file, object_pairs_hook=OrderedDict)["wing_1"]
-        wing_data["side"] = "right"
-        seg = geom.WingSegment("straight_seg", wing_data)
+        dims = {
+            "position": [wing_data["connect"]["dx"],
+                         wing_data["connect"]["dy"],
+                         wing_data["connect"]["dz"]],
+            "semispan": wing_data["span"],
+            "sweep": wing_data["sweep"],
+            "dihedral": wing_data["dihedral"],
+            "mount_angle": wing_data["mounting_angle"],
+            "washout": wing_data["washout"],
+            "root_chord": wing_data["root_chord"],
+            "tip_chord": wing_data["tip_chord"],
+            "airfoils": wing_data["airfoils"],
+            "grid": wing_data["grid"],
+            "control": wing_data["control"]}
+        seg = geom.WingSegment("straight_seg", "right", dims)
         yield seg
 
 
@@ -44,23 +57,35 @@ WING_DIR = "test/geometry/testwings/"
 
 
 @pytest.mark.parametrize("inputfile,side,tip,expected", [
-    (WING_DIR+"wing_1.json", "right", "right", (-0.45530792283384,
-                                                3.984778792367,
-                                                -1.3486229709906)),
-    (WING_DIR+"wing_1.json", "right", "left", (0.25, 0.0, -1.)),
-    (WING_DIR+"wing_1.json", "left", "right", (0.25, 0.0, -1.)),
-    (WING_DIR+"wing_1.json", "left", "left", (-0.45530792283384,
-                                              -3.984778792367,
-                                              -1.3486229709906)),
-])
-def test_get_side_position(inputfile, side, tip, expected):
+    (WING_DIR+"wing_1.json", "right", "right_tip", (-0.45530792283384,
+                                                    3.984778792367,
+                                                    -1.3486229709906)),
+    (WING_DIR+"wing_1.json", "right", "left_tip", (0.25, 0.0, -1.)),
+    (WING_DIR+"wing_1.json", "left", "right_tip", (0.25, 0.0, -1.)),
+    (WING_DIR+"wing_1.json", "left", "left_tip", (-0.45530792283384,
+                                                  -3.984778792367,
+                                                  -1.3486229709906))])
+def test_get_position(inputfile, side, tip, expected):
     # load input file
     with open(inputfile) as file:
         wing_data = json.load(file, object_pairs_hook=OrderedDict)["wing_1"]
-        wing_data["side"] = side
-        seg = geom.WingSegment("seg_name", wing_data)
+        dims = {
+            "position": [wing_data["connect"]["dx"],
+                         wing_data["connect"]["dy"],
+                         wing_data["connect"]["dz"]],
+            "semispan": wing_data["span"],
+            "sweep": wing_data["sweep"],
+            "dihedral": wing_data["dihedral"],
+            "mount_angle": wing_data["mounting_angle"],
+            "washout": wing_data["washout"],
+            "root_chord": wing_data["root_chord"],
+            "tip_chord": wing_data["tip_chord"],
+            "airfoils": wing_data["airfoils"],
+            "grid": wing_data["grid"],
+            "control": wing_data["control"]}
+        seg = geom.WingSegment("seg_name", side, dims)
 
-        unit_normal = seg.get_side_position(tip)
+        position = seg.get_position(tip)
         expected = np.array(expected)
 
-        assert np.allclose(unit_normal, expected, rtol=0., atol=1e-10) is True
+        assert np.allclose(position, expected, rtol=0., atol=1e-10) is True

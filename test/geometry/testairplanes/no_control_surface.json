@@ -1,0 +1,103 @@
+{
+	"tag": {
+		"UUID": "16698254-2160-4949-BC5E-203C845F3449",
+		"date": "2017-08-11T16:35:26.458Z",
+		"version": "MachUp 4.0"
+	},
+	"run": {
+		"forces": ""
+	},
+	"solver": {
+		"type": "linear",
+		"convergence": 0.000001,
+		"relaxation": 0.9
+	},
+	"plane": {
+		"name": "MyAirplane",
+		"CGx": 0,
+		"CGy": 0,
+		"CGz": 0
+	},
+	"reference": {
+		"area": 0,
+		"longitudinal_length": 0,
+		"lateral_length": 0
+	},
+	"condition": {
+		"alpha": 1,
+		"beta": 0
+	},
+	"controls": {
+		"elevator": {
+			"is_symmetric": 1,
+			"deflection": 0
+		},
+		"rudder": {
+			"is_symmetric": 0,
+			"deflection": 0
+		},
+		"aileron": {
+			"is_symmetric": 0,
+			"deflection": 0
+		},
+		"flap": {
+			"is_symmetric": 1,
+			"deflection": 0
+		}
+	},
+	"airfoil_DB": ".",
+	"wings": {
+		"Wing_1": {
+			"name": "Wing_1",
+			"ID": 1,
+			"is_main": 1,
+			"side": "both",
+			"connect": {
+				"ID": 0,
+				"location": "tip",
+				"dx": 0,
+				"dy": 0,
+				"dz": 0,
+				"yoffset": 0
+			},
+			"span": 4,
+			"sweep": 0,
+			"dihedral": 0,
+			"mounting_angle": 0,
+			"washout": 0,
+			"root_chord": 1,
+			"tip_chord": 1,
+			"airfoils": {
+				"af1": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": -0.036899751,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": -0.0527,
+						"Cm_alpha": -0.08,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1.4
+					}
+				},
+				"af2": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": -0.036899751,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": -0.0527,
+						"Cm_alpha": -0.08,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1.4
+					}
+				}
+			},
+			"grid": 40,
+			"control": {},
+			"sameAsRoot": true
+		}
+	}
+}

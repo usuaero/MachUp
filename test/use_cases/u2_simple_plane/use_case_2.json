@@ -1,0 +1,246 @@
+{
+	"tag": {
+		"UUID": "32204E10-3DC0-4215-B9BE-84376A57BA1E",
+		"date": "2017-07-31T17:03:52.736Z",
+		"version": "MachUp 4.0"
+	},
+	"run": {
+		"derivatives": ""
+	},
+	"solver": {
+		"type": "linear",
+		"convergence": 0.000001,
+		"relaxation": 0.9
+	},
+	"plane": {
+		"name": "MyAirplane",
+		"CGx": -0.29,
+		"CGy": 0,
+		"CGz": 0.25
+	},
+	"reference": {
+		"area": 6,
+		"longitudinal_length": 0.75,
+		"lateral_length": 8
+	},
+	"condition": {
+		"alpha": 0.535544439222218,
+		"beta": 0
+	},
+	"controls": {
+		"elevator": {
+			"is_symmetric": 1,
+			"deflection": 0.140350848322254
+		},
+		"rudder": {
+			"is_symmetric": 0,
+			"deflection": 0
+		},
+		"aileron": {
+			"is_symmetric": 0,
+			"deflection": 0
+		},
+		"flap": {
+			"is_symmetric": 1,
+			"deflection": 0
+		}
+	},
+	"airfoil_DB": ".",
+	"wings": {
+		"mainwing": {
+			"name": "mainwing",
+			"ID": 1,
+			"is_main": 1,
+			"side": "both",
+			"connect": {
+				"ID": 0,
+				"location": "tip",
+				"dx": 0,
+				"dy": 0,
+				"dz": 0,
+				"yoffset": 0
+			},
+			"span": 4,
+			"sweep": 0,
+			"dihedral": 3,
+			"mounting_angle": 0,
+			"washout": 0,
+			"root_chord": 1,
+			"tip_chord": 0.5,
+			"airfoils": {
+				"af1": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": -0.036899751,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": -0.0527,
+						"Cm_alpha": -0.08,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1.4
+					}
+				},
+				"af2": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": -0.036899751,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": -0.0527,
+						"Cm_alpha": -0.08,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1.4
+					}
+				}
+			},
+			"grid": 40,
+			"control": {
+				"has_control_surface": true,
+				"span_root": 0.4,
+				"span_tip": 0.9,
+				"chord_root": 0.25,
+				"chord_tip": 0.25,
+				"is_sealed": 1,
+				"mix": {
+					"elevator": 0,
+					"rudder": 0,
+					"aileron": 1,
+					"flap": 0
+				}
+			},
+			"sameAsRoot": true
+		},
+		"horizontal_tail": {
+			"name": "horizontal_tail",
+			"ID": 2,
+			"is_main": 0,
+			"side": "both",
+			"connect": {
+				"ID": 0,
+				"location": "tip",
+				"dx": -4,
+				"dy": 0,
+				"dz": 0,
+				"yoffset": 0
+			},
+			"span": 1,
+			"sweep": 20,
+			"dihedral": 0,
+			"mounting_angle": 1,
+			"washout": 0,
+			"root_chord": 1,
+			"tip_chord": 0.5,
+			"airfoils": {
+				"af1": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": 0,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": 0,
+						"Cm_alpha": 0,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1
+					}
+				},
+				"af2": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": 0,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": 0,
+						"Cm_alpha": 0,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1
+					}
+				}
+			},
+			"grid": 40,
+			"control": {
+				"has_control_surface": true,
+				"span_root": 0,
+				"span_tip": 1,
+				"chord_root": 0.25,
+				"chord_tip": 0.5,
+				"is_sealed": 1,
+				"mix": {
+					"elevator": 1,
+					"rudder": 0,
+					"aileron": 0,
+					"flap": 0
+				}
+			},
+			"sameAsRoot": true
+		},
+		"vertical_tail": {
+			"name": "vertical_tail",
+			"ID": 3,
+			"is_main": 0,
+			"side": "right",
+			"connect": {
+				"ID": 0,
+				"location": "tip",
+				"dx": -4,
+				"dy": 0,
+				"dz": 0,
+				"yoffset": 0
+			},
+			"span": 0.8,
+			"sweep": 25,
+			"dihedral": 90,
+			"mounting_angle": 0,
+			"washout": 0,
+			"root_chord": 1,
+			"tip_chord": 0.5,
+			"airfoils": {
+				"af1": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": 0,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": 0,
+						"Cm_alpha": 0,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1
+					}
+				},
+				"af2": {
+					"properties": {
+						"type": "linear",
+						"alpha_L0": 0,
+						"CL_alpha": 6.283185307,
+						"Cm_L0": 0,
+						"Cm_alpha": 0,
+						"CD0": 0.0055,
+						"CD0_L": -0.0045,
+						"CD0_L2": 0.01,
+						"CL_max": 1
+					}
+				}
+			},
+			"grid": 40,
+			"control": {
+				"has_control_surface": true,
+				"span_root": 0,
+				"span_tip": 1,
+				"chord_root": 0.25,
+				"chord_tip": 0.5,
+				"is_sealed": 1,
+				"mix": {
+					"elevator": 0,
+					"rudder": -1,
+					"aileron": 0,
+					"flap": 0
+				}
+			},
+			"sameAsRoot": true
+		}
+	}
+}
