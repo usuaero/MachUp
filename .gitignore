@@ -10,3 +10,4 @@ build/
 !.gitignore
 !.pylintrc
 !CMakeLists.txt
+!*.md
