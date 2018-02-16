@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="common" />
+		<Option pch_mode="2" />
+		<Option compiler="gfortran" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/common" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Debug/" />
+				<Option type="2" />
+				<Option compiler="gfortran" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-cpp" />
+					<Add option="-ffree-line-length-none" />
+					<Add option="-fdefault-double-8" />
+					<Add option="-fdefault-real-8" />
+					<Add option="-Wall" />
+					<Add option="-g" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/common" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Release/" />
+				<Option type="2" />
+				<Option compiler="gfortran" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-cpp" />
+					<Add option="-ffree-line-length-none" />
+					<Add option="-fdefault-double-8" />
+					<Add option="-fdefault-real-8" />
+					<Add option="-Wall" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+			<Target title="Debug_dnad">
+				<Option output="bin/Debug_dnad/common" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Debug_dnad/" />
+				<Option type="2" />
+				<Option compiler="gfortran" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-cpp" />
+					<Add option="-ffree-line-length-none" />
+					<Add option="-fdefault-double-8" />
+					<Add option="-fdefault-real-8" />
+					<Add option="-Wall" />
+					<Add option="-g" />
+					<Add option="-Ddnad" />
+					<Add option="-Dndv=3" />
+				</Compiler>
+			</Target>
+			<Target title="Release_dnad">
+				<Option output="bin/Release_dnad/common" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="obj/Release_dnad/" />
+				<Option type="2" />
+				<Option compiler="gfortran" />
+				<Option createDefFile="1" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-cpp" />
+					<Add option="-ffree-line-length-none" />
+					<Add option="-fdefault-double-8" />
+					<Add option="-fdefault-real-8" />
+					<Add option="-Wall" />
+					<Add option="-Ddnad" />
+					<Add option="-Dndv=3" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+				</Linker>
+			</Target>
+		</Build>
+		<Unit filename="airfoil.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="atmosphere.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="dataset.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="dnad.F90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="json.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="math.f90">
+			<Option weight="1" />
+		</Unit>
+		<Unit filename="myjson.f90">
+			<Option weight="1" />
+		</Unit>
+		<Unit filename="section.f90">
+			<Option weight="4" />
+		</Unit>
+		<Extensions>
+			<code_completion />
+			<envvars />
+			<debugger />
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
