@@ -232,6 +232,8 @@ subroutine view_stl(t)
     character(100) :: filename
     integer :: i,iwing,isec,af_datasize
     integer :: ierror = 0
+    real :: percent_1, percent_2, percent_c, temp
+    real :: chord_1, chord_2, RA, dtheta
 
     do i=1,size(airfoils)
         call af_create_geom_from_file(airfoils(i),DB_Airfoil)
@@ -257,12 +259,33 @@ subroutine view_stl(t)
         allocate(af_points1(af_datasize,3))
         allocate(af_points2(af_datasize,3))
 
-        if(t%wings(iwing)%is_linear.ne.1) then
+        if(t%wings(iwing)%is_linear.eq.1) then
             do isec=1,t%wings(iwing)%nSec
                 si => t%wings(iwing)%sec(isec)
-                call view_create_local_airfoil(si%af1_a,si%af1_b,t%wings(iwing)%side,si%af_weight_1,si%chord_1,&
+
+                dtheta = pi / REAL(t%wings(iwing)%nSec)
+
+                percent_1 = 0.5*(1.0-cos(dtheta*REAL(isec-1)))
+                percent_2 = 0.5*(1.0-cos(dtheta*REAL(isec)))
+                percent_c = 0.5*(1.0-cos(dtheta*(REAL(isec)-0.5)))
+                if(t%wings(iwing)%side.eq.'left') then
+                    temp = percent_1
+                    percent_1 = percent_2
+                    percent_2 = temp
+                end if
+
+                if(t%wings(iwing)%chord_2 >= 0.0) then
+                    chord_1 = t%wings(iwing)%chord_1 + percent_1*(t%wings(iwing)%chord_2 - t%wings(iwing)%chord_1)
+                    chord_2 = t%wings(iwing)%chord_1 + percent_2*(t%wings(iwing)%chord_2 - t%wings(iwing)%chord_1)
+                else
+                    RA = 8.0 * t%wings(iwing)%span / pi / t%wings(iwing)%chord_1
+                    chord_1 = 8.0*t%wings(iwing)%span / pi / RA * sqrt(1.0 - percent_1**2)
+                    chord_2 = 8.0*t%wings(iwing)%span / pi / RA * sqrt(1.0 - percent_2**2)
+                end if
+
+                call view_create_local_airfoil(si%af1_a,si%af1_b,t%wings(iwing)%side,si%af_weight_1,chord_1,&
                                             & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
-                call view_create_local_airfoil(si%af2_a,si%af2_b,t%wings(iwing)%side,si%af_weight_2,si%chord_2,&
+                call view_create_local_airfoil(si%af2_a,si%af2_b,t%wings(iwing)%side,si%af_weight_2,chord_2,&
                                             & si%twist2,si%dihedral2,af_datasize,si%P2(:),af_points2)
                 call view_create_stl_shell(af_datasize,af_points1,af_points2)
             end do
@@ -284,7 +307,9 @@ subroutine view_stl(t)
                                         & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
         end if
 
-        if(t%wings(iwing)%is_linear.eq.1) call view_create_stl_shell(af_datasize,af_points1,af_points2)
+        if(t%wings(iwing)%is_linear.ne.1) then
+            call view_create_stl_shell(af_datasize,af_points1,af_points2)
+        end if
 !        call view_create_stl_rib(af_datasize,af_points1)
 !        call view_create_stl_rib(af_datasize,af_points2)
         deallocate(af_points1)
