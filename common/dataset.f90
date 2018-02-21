@@ -32,6 +32,8 @@ contains
 subroutine ds_allocate(t)
     type(dataset_t) :: t
 
+    if(allocated(t%RawData)) call ds_deallocate(t)
+
     allocate(t%RawData(t%datasize,t%dim))
     allocate(t%Deriv(t%datasize,t%dim))
     allocate(t%Xi(t%datasize))

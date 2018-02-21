@@ -4,6 +4,9 @@ module view_m
 #define real type(dual)
 #endif
     use plane_m
+    use wing_m
+    use section_m
+    use airfoil_m
     implicit none
 
 contains
@@ -156,6 +159,7 @@ subroutine view_plotmtv(t)
             force_dir(:) = t%external_forces(iforce)%RawData(ipoint,4:6)
             force_mag    = t%external_forces(iforce)%RawData(ipoint,7)
             min_dist = 1.0e16
+            min_isec = 0
             do isec=1,t%nSize
                 si => t%sec(isec)%myp
                 dist = math_length(3,force_pos(:),si%PC(:))
@@ -226,8 +230,6 @@ end subroutine view_vtk
 subroutine view_stl(t)
     type(plane_t) :: t
     type(section_t),pointer :: si
-    type(airfoil_t),pointer :: af1
-    type(airfoil_t),pointer :: af2
     real,allocatable,dimension(:,:) :: af_points1,af_points2
     character(100) :: filename
     integer :: i,iwing,isec,af_datasize
@@ -427,5 +429,187 @@ subroutine view_create_local_airfoil(af1,af2,side,percent,chord,twist,dihedral,d
     end do
 
 end subroutine view_create_local_airfoil
+
+
+!-----------------------------------------------------------------------------------------------------------
+subroutine view_panair(t)
+    type(plane_t) :: t
+    real,allocatable,dimension(:,:) :: af_points
+    character(100) :: filename
+    integer :: i,iwing,af_datasize
+    integer :: ierror = 0
+
+    do i=1,size(airfoils)
+        call af_create_geom_from_file(airfoils(i),DB_Airfoil)
+    end do
+
+    do iwing=1,t%nrealwings !real wings
+        af_datasize = t%wings(iwing)%airfoils(1)%p%geom%datasize
+        do i=1, t%wings(iwing)%nairfoils
+            if(t%wings(iwing)%airfoils(i)%p%geom%datasize .ne. af_datasize) then
+                write(*,*) 'All airfoils for wing ',t%wings(iwing)%name,' must have same number of nodes.'
+                stop
+            end if
+        end do
+
+        ! Open the file
+        if(t%wings(iwing)%orig_side .eq. "both") then
+            write(filename, *) trim(adjustl(t%master_filename))//'_'//trim(adjustl(t%wings(iwing)%name))//trim(adjustl(t%wings(iwing)%side))//'.panair'
+        else
+            write(filename, *) trim(adjustl(t%master_filename))//'_'//trim(adjustl(t%wings(iwing)%name))//'.panair'
+        end if
+        open(unit = 10, File = filename, action = 'write', iostat = ierror)
+        allocate(af_points(af_datasize,3))
+        call view_write_panair_header(iwing)
+        call view_write_panair_upper(t%wings(iwing), af_datasize, af_points)
+        call view_write_panair_lower(t%wings(iwing), af_datasize, af_points)
+        call view_write_panair_wake()
+        write(10, "(A)") "$END"
+        deallocate(af_points)
+        close(10)
+    end do
+
+end subroutine view_panair
+
+
+subroutine view_write_panair_header(iwing)
+    integer, intent(in) :: iwing
+
+    ! Write header info
+    write(10, "(A, I0)") "$POINTS for wing ", iwing
+    write(10, "(A)") "=kn"  ! Number of networks in $POINTS block
+    write(10, "(I0)") 2
+    write(10, "(A)") "=kt"  ! Boundary condition (1 = solid surface)
+    write(10, "(I0)") 1
+
+end subroutine view_write_panair_header
+
+
+subroutine view_write_panair_upper(wi, af_datasize, af_points)
+    type(wing_t), intent(in) :: wi
+    integer, intent(in) :: af_datasize
+    real, allocatable, dimension(:,:), intent(inout) :: af_points
+
+    call view_write_panair_network(wi, af_datasize, af_points, "upper", af_datasize, af_datasize / 2 + 1)
+end subroutine view_write_panair_upper
+
+
+subroutine view_write_panair_lower(wi, af_datasize, af_points)
+    type(wing_t), intent(in) :: wi
+    integer, intent(in) :: af_datasize
+    real, allocatable, dimension(:,:), intent(inout) :: af_points
+
+    call view_write_panair_network(wi, af_datasize, af_points, "lower", af_datasize / 2 + 1, 1)
+end subroutine view_write_panair_lower
+
+
+subroutine view_write_panair_network(wi, af_datasize, af_points, network, istart, iend)
+    type(wing_t), intent(in) :: wi
+    integer, intent(in) :: af_datasize
+    real, allocatable, dimension(:,:), intent(inout) :: af_points
+    character(len=*), intent(in) :: network
+    integer, intent(in) :: istart, iend
+
+    integer :: isec, isec_start, isec_end, isec_inc, isec_side1, isec_side2
+    type(section_t), pointer :: si
+
+    write(10, "(A, T11, A)") "=nm", "nn"
+    write(10, "(I0, T11, I0, T71, A)") istart - iend + 1, wi%nSec + 1, network
+
+    if(wi%side .eq. "left") then
+        isec_start = wi%nSec
+        isec_end = 1
+        isec_inc = -1
+        isec_side1 = 1
+        isec_side2 = 2
+    else
+        isec_start = 1
+        isec_end = wi%nSec
+        isec_inc = 1
+        isec_side1 = 1
+        isec_side2 = 2
+    end if
+
+    do isec = isec_start, isec_end, isec_inc
+        si => wi%sec(isec)
+        call view_create_local_airfoil_panair(wi, si, isec_side1, af_datasize, af_points)
+        call view_write_panair_points(istart, iend, af_points)
+    end do
+
+    call view_create_local_airfoil_panair(wi, si, isec_side2, af_datasize, af_points)
+    call view_write_panair_points(istart, iend, af_points)
+
+end subroutine view_write_panair_network
+
+
+subroutine view_create_local_airfoil_panair(wi, si, sec_side, af_datasize, af_points)
+    type(wing_t), intent(in) :: wi
+    type(section_t), pointer, intent(in) :: si
+    integer, intent(in) :: sec_side, af_datasize
+
+    real, allocatable, dimension(:,:), intent(inout) :: af_points
+
+    real :: percent, chord, RA
+    integer :: i
+
+    if(sec_side .eq. 1) then
+        percent = si%percent_1
+    else if(sec_side .eq. 2) then
+        percent = si%percent_2
+    else
+        percent = si%percent_c
+    end if
+
+    if(wi%chord_2 >= 0.0) then
+        chord = wi%chord_1 + percent*(wi%chord_2 - wi%chord_1)
+    else
+        RA = 8.0 * wi%span / pi / wi%chord_1
+        chord = 8.0 * wi%span / pi / RA * sqrt(1.0 - percent**2)
+    end if
+
+    if(sec_side .eq. 1) then
+        call view_create_local_airfoil(si%af1_a, si%af1_b, wi%side, si%af_weight_1, chord, &
+                & si%twist1, si%dihedral1, af_datasize, si%P1, af_points)
+    else if(sec_side .eq. 2) then
+        call view_create_local_airfoil(si%af2_a, si%af2_b, wi%side, si%af_weight_2, chord, &
+                & si%twist2, si%dihedral2, af_datasize, si%P2, af_points)
+    else
+        call view_create_local_airfoil(si%afc_a, si%afc_b, wi%side, si%af_weight_c, chord, &
+                & si%twist, si%dihedral, af_datasize, si%PC, af_points)
+    end if
+
+    do i = 1, af_datasize
+        af_points(i, 1) = -af_points(i, 1)
+        af_points(i, 3) = -af_points(i, 3)
+    end do
+
+end subroutine view_create_local_airfoil_panair
+
+
+subroutine view_write_panair_points(istart, iend, af_points)
+    integer, intent(in) :: istart, iend
+    real, dimension(:, :), intent(in) :: af_points
+
+    integer :: ipt
+
+    do ipt = istart, iend + 1, -2
+        write(10, "(6F10.6)") af_points(ipt, 1:3), af_points(ipt - 1, 1:3)
+    end do
+    if (ipt == iend) then
+        write(10, "(3F10.6)") af_points(ipt, 1:3)
+    end if
+end subroutine view_write_panair_points
+
+
+subroutine view_write_panair_wake()
+    write(10, "(A)") "$TRAILING matchw=0"
+    write(10, "(A)") "=kn"
+    write(10, "(I0)") 1
+    write(10, "(A, T11, A)") "=kt", "matchw"
+    write(10, "(I0, T11, I0)") 18, 0
+    write(10, "(A, T11, A, T21, A, T31, A)") "=inat", "insd", "xwake", "twake"
+    write(10, "(A, T11, I0, T21, I0, T31, I0, T71, A)") "upper", 1, 10, 0, "wake"
+end subroutine
+
 
 end module view_m

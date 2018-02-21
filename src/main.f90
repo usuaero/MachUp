@@ -9,9 +9,9 @@ program main
     type(json_value),pointer :: json_run, json_command
     character(100) :: filename
     integer :: i,nrun_types,dorun
-    
+
     real :: time1,time2
-    
+
     call cpu_time(time1)
     write(*,*) '-----------------------------------------------'
     write(*,*) '|                                             |'
@@ -37,9 +37,9 @@ program main
     write(*,*)
     write(*,*)
 
-    call get_command_argument(1,filename)
+    call get_command_argument(1, filename)
     myplane%master_filename = filename
-    
+
     call plane_set_defaults(myplane)
     call plane_load_json(myplane)
     call plane_init_setup(myplane)
@@ -58,14 +58,16 @@ program main
         call json_clear_exceptions()
 
         if(dorun .eq. 1) then
-            write(*,*) 
+            write(*,*)
             write(*,*) 'Running command : ',run_type
-            
+
             myplane%verbose = 1
 
             select case (run_type)
                 case ('stl')
                     call view_stl(myplane)
+                case ('panair')
+                    call view_panair(myplane)
                 case ('plot')
                     call view_plotmtv(myplane)
                 case ('forces')

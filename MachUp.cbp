@@ -8,11 +8,10 @@
 		<Build>
 			<Target title="Debug">
 				<Option output="bin/Debug/MachUp" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="./Test_DNAD" />
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gfortran" />
-				<Option parameters="C:\Users\a00305185\Documents\PhD\MachUp\dev_CodeBlocks\MachUp\Test_DNAD\input.json" />
+				<Option parameters="input.json" />
 				<Compiler>
 					<Add option="-cpp" />
 					<Add option="-ffree-line-length-none" />
@@ -30,7 +29,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gfortran" />
-				<Option parameters="C:\Users\a00305185\Documents\PhD\MachUp\dev_CodeBlocks\MachUp\bin\input_new.json" />
+				<Option parameters="input.json" />
 				<Compiler>
 					<Add option="-march=corei7" />
 					<Add option="-ffast-math" />
@@ -49,11 +48,10 @@
 			</Target>
 			<Target title="Debug_dnad">
 				<Option output="bin/Debug_dnad/MachUp" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="C:/Users/a00305185/Documents/PhD/MachUp/DNAD/chord/dnad_linear" />
 				<Option object_output="obj/Debug_dnad/" />
 				<Option type="1" />
 				<Option compiler="gfortran" />
-				<Option parameters="C:\Users\a00305185\Documents\PhD\MachUp\DNAD\chord\dnad_linear\input.json" />
+				<Option parameters="input.json" />
 				<Compiler>
 					<Add option="-cpp" />
 					<Add option="-ffree-line-length-none" />
@@ -73,7 +71,7 @@
 				<Option object_output="obj/Release_dnad/" />
 				<Option type="1" />
 				<Option compiler="gfortran" />
-				<Option parameters="C:\Users\a00305185\Documents\PhD\MachUp\dev_CodeBlocks\MachUp\bin\elliptic_dnad.json" />
+				<Option parameters="input.json" />
 				<Compiler>
 					<Add option="-march=corei7" />
 					<Add option="-ffast-math" />

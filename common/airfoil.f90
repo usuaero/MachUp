@@ -12,20 +12,20 @@ module airfoil_m
         character(20) :: properties_type
         integer :: has_data_file
         integer :: has_geom_file
-        
+
         real :: aL0
         real :: CLa
         real :: CmL0
         real :: Cma
         real :: CD0,CD0L,CD0L2
         real :: CLmax
-        
+
         type(dataset_t) :: data2D
         type(dataset_t) :: geom
     end type airfoil_t
 
     type airfoil_p
-        type(airfoil_t),pointer :: p  
+        type(airfoil_t),pointer :: p
     end type airfoil_p
 
 contains
@@ -45,11 +45,13 @@ subroutine af_create_geom_from_file(t,DB_Airfoil)
     character(200) :: DB_Airfoil
     character(100) :: filename
 
-    filename = trim(adjustl(DB_Airfoil))//'/'//trim(adjustl(t%name))//'_profile.txt'
-    call ds_create_from_file(t%geom,filename,2)
+    if(.not. allocated(t%geom%RawData)) then
+        filename = trim(adjustl(DB_Airfoil))//'/'//trim(adjustl(t%name))//'_profile.txt'
+        call ds_create_from_file(t%geom,filename,2)
+    end if
 
 end subroutine af_create_geom_from_file
-    
+
 !-----------------------------------------------------------------------------------------------------------
 real function af_CLa(t,alpha)
     type(airfoil_t),pointer :: t
