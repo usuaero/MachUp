@@ -454,7 +454,7 @@ subroutine view_panair(t)
 
         ! Open the file
         if(t%wings(iwing)%orig_side .eq. "both") then
-            write(filename, *) trim(adjustl(t%master_filename))//'_'//trim(adjustl(t%wings(iwing)%name))//trim(adjustl(t%wings(iwing)%side))//'.panair'
+            write(filename, *) trim(adjustl(t%master_filename))//'_'//trim(adjustl(t%wings(iwing)%name))//"-"//trim(adjustl(t%wings(iwing)%side))//'.panair'
         else
             write(filename, *) trim(adjustl(t%master_filename))//'_'//trim(adjustl(t%wings(iwing)%name))//'.panair'
         end if
