@@ -57,7 +57,7 @@ subroutine ds_create_from_file(t,filename,dim)
 
     if(index(filename, '.json') .ne. 0) then
         !Read as JSON file
-        call ds_read_json(t,filename,dim)
+        call ds_read_json(t,filename)
         call ds_calc_Xi(t)
     else
         !Read as text file
@@ -123,16 +123,11 @@ subroutine ds_read_file(t,filename,dim)
 end subroutine ds_read_file
 
 !-----------------------------------------------------------------------------------------------------------
-subroutine ds_read_json(t,filename,dim)
+subroutine ds_read_json(t,filename)
     type(dataset_t), intent(out) :: t
     character(len=*), intent(in) :: filename
-    integer, intent(in) :: dim
 
-    integer :: icol, irow
-    character(len=2) :: row_name, col_name
-    character(len=7) :: fmt_string
     type(json_file) :: json    !the JSON structure read from the file
-    type(json_value), pointer :: json_table, json_row
 
     write(*,*) 'Reading JSON file: ',trim(filename)
     call json%load_file(filename = filename); call json_check()
@@ -150,7 +145,6 @@ subroutine myjson_file_get_dataset(json, name, value)
     character(len=*), intent(in) :: name
     type(dataset_t), intent(out) :: value
 
-    real :: temp
     type(json_value), pointer :: json_table, json_row
     integer :: irow, icol, ncol
     character(len=10) :: row_name, col_name

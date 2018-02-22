@@ -16,7 +16,7 @@ subroutine loads_point(t,json_command)
     character(100) :: filename
     integer :: iwing,isec,ierror
     type(section_t),pointer :: si
-    real :: P(3),percent,span,chord
+    real :: P(3),percent,chord
     120 Format(A15, 100ES25.13)
 
 
@@ -59,7 +59,7 @@ subroutine loads_per_span(t,json_command)
     integer :: iwing,isec,ierror
     type(section_t),pointer :: si
     type(dataset_t) :: dist
-    real :: ans(7),P(3),percent,span,chord
+    real :: ans(7),P(3),percent,chord
     real :: zero
     120 Format(A15, 100ES25.13)
 

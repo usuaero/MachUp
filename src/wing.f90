@@ -42,6 +42,8 @@ module wing_m
 
         integer :: nSec
         integer :: nairfoils
+        integer :: root_clustering  !Root clustering parameter (1 = clustered, 0 = linear)
+        integer :: tip_clustering  !Tip clustering parameter (1 = clustered, 0 = linear)
 
         real :: root_F(3), root_M(3) !force and moment load at root of the wing
         real :: tip_F(3), tip_M(3) !force and moment load at the tip of the wing
@@ -79,13 +81,15 @@ end subroutine wing_deallocate
 subroutine wing_setup(t,start)
     type(wing_t) :: t
     type(section_t),pointer :: si
-    integer :: i, isec, iaf
+    integer :: i, isec
     REAL :: dtheta
     real :: start(3),qvec(3),nvec(3),avec(3),fvec(3),percent_1,percent_2,percent_c,chord_1,chord_2,RA,span
     real :: my_sweep,my_dihedral,my_twist,temp
     real :: sweep1,sweep2,dihedral1,dihedral2,twist1,twist2
     real :: cfc,thetaf,efi,etah,percent_c_af,percent_1_af,percent_2_af
     type(dataset_t) :: data_sweep,data_dihedral,data_washout,data_chord,data_af_ratio,data_elastic_twist
+    logical :: linear
+    real :: theta_start, theta_end, fac, off
 
     t%is_linear = 1
     if(t%nairfoils > 2) t%is_linear = 0
@@ -127,14 +131,42 @@ subroutine wing_setup(t,start)
     start = t%root
 
     call wing_allocate(t)
-    dtheta = pi/REAL(t%nSec)
-t%area = 0.0
-span = 0.0
+
+    linear = .false.
+    if(t%root_clustering .ne. 0 .and. t%tip_clustering .ne. 0) then
+        theta_start = 0.0
+        theta_end = pi
+        off = 1.0
+        fac = 0.5
+    else if(t%root_clustering .ne. 0) then
+        theta_start = 0.0
+        theta_end = pi / 2.0
+        off = 1.0
+        fac = 1.0
+    else if(t%tip_clustering .ne. 0) then
+        theta_start = pi / 2.0
+        theta_end = pi
+        off = 0.0
+        fac = 1.0
+    else
+        linear = .true.
+    end if
+
+    dtheta = (theta_end - theta_start)/REAL(t%nSec)
+
+    t%area = 0.0
+    span = 0.0
     do isec=1,t%nSec
         si => t%sec(isec)
-        percent_1 = 0.5*(1.0-cos(dtheta*REAL(isec-1)))
-        percent_2 = 0.5*(1.0-cos(dtheta*REAL(isec)))
-        percent_c = 0.5*(1.0-cos(dtheta*(REAL(isec)-0.5)))
+        if(linear) then
+            percent_1 = REAL(isec - 1) / REAL(t%nSec)
+            percent_2 = REAL(isec) / REAL(t%nSec)
+            percent_c = (REAL(isec) - 0.5) / REAL(t%nSec)
+        else
+            percent_1 = fac * (off - cos(theta_start + dtheta * REAL(isec-1)))
+            percent_2 = fac * (off - cos(theta_start + dtheta * REAL(isec)))
+            percent_c = fac * (off - cos(theta_start + dtheta * (REAL(isec) - 0.5)))
+        end if
         if(t%side.eq.'left') then !must handle differently for left wing
             temp = percent_1
             percent_1 = percent_2
@@ -334,7 +366,7 @@ subroutine wing_flip_groundplane(t,alpha,CG,hag)
     type(section_t),pointer :: si
     real :: alpha,CG(3),hag
     integer :: isec
-    real :: A,B,C,D,P1(3),P2(3),P3(3),tempv(3),tempr,temp_percent,zero
+    real :: A,B,C,D,P1(3),P2(3),P3(3),tempv(3),tempr,zero
     zero = 0.0
     P1(1) = CG(1) - hag*sin(alpha) !offset from CG
     P1(2) = CG(2)

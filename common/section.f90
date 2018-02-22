@@ -38,11 +38,11 @@ module section_m
         type(airfoil_t),pointer :: afc_a,afc_b !airfoils to be linearly interpolated at section control point
         type(airfoil_t),pointer :: af1_a,af1_b !airfoils to be linearly interpolated at P1
         type(airfoil_t),pointer :: af2_a,af2_b !airfoils to be linearly interpolated at P2
-        
+
         real :: Gamma
         real :: F(3),M(3) !force and moment about the local quarter-chord divided by dynamic pressure
         real :: Load_F(3),Load_M(3) !aerodynamic force and moment distributed loads
-        
+
         !For Geometry Purposes
         real :: twist,twist1,twist2
         real :: dihedral,dihedral1,dihedral2
@@ -105,7 +105,6 @@ end function sec_Cm
 !-----------------------------------------------------------------------------------------------------------
 real function sec_stalled(t)
     type(section_t),pointer :: t
-    real :: sCLmax
     sec_stalled = 0
     if(sec_CL(t) > sec_CLmax(t)) sec_stalled = sec_CL(t) - sec_CLmax(t)
 end function sec_stalled
