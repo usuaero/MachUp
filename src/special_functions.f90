@@ -456,6 +456,8 @@ subroutine sf_stallonset(t,json_command)
 
     stalled = 0
     maxdiff = 0.0
+    swing = 0
+    ssec = 0
     do ialpha = -10, 300, 1
         t%alpha = REAL(ialpha)/10.0*pi/180.0 + start_alpha
         call plane_run_current(t)
@@ -773,7 +775,7 @@ subroutine sf_target_CL(t,json_command)
 #else
         t%alpha = t%alpha + (CL_target - t%GL(t%nrealwings+1, 3)) / t%GL(t%nrealwings+1, 3)%dx(1)
         t%alpha%dx(1) = t%GL(t%nrealwings+1, 3)%dx(1) / t%GL(t%nrealwings+1, 3)%dx(1)
-        
+
         call plane_run_current(t)
         residual = t%GL(t%nrealwings+1, 3) - CL_target
         write(*,*) t%alpha%x*180.0/pi, t%GL(t%nrealwings+1,3)%x, t%GL(t%nrealwings+1,3)%dx(1)
@@ -898,7 +900,7 @@ subroutine sf_report(t,json_command)
         call json_value_get(json_command,i,c_var)
         if(trim(c_var%name).eq.'filename') cycle
         if(trim(c_var%name).eq.'run') cycle
-        
+
         call myjson_get(json_command,trim(c_var%name)//'.name', cval); var_name = trim(cval)
         call myjson_get(json_command,trim(c_var%name)//'.file', cval); var_file = trim(cval)
         call myjson_get(json_command,trim(c_var%name)//'.save', save_file, 0);

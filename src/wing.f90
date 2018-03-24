@@ -133,6 +133,10 @@ subroutine wing_setup(t,start)
     call wing_allocate(t)
 
     linear = .false.
+    theta_start = 0.0
+    theta_end = pi
+    off = 1.0
+    fac = 0.5
     if(t%root_clustering .ne. 0 .and. t%tip_clustering .ne. 0) then
         theta_start = 0.0
         theta_end = pi

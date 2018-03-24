@@ -365,6 +365,7 @@ subroutine ds_linear_interpolate(t,value,ans)
     y = t%RawData
 
     !find correct interval
+    ival = 0
     if(value < x(2)) then
         ival = 1
     elseif(value > x(n-1)) then
@@ -407,6 +408,7 @@ subroutine ds_cubic_interpolate(t,value,flag,ans)
     y = t%RawData
 
     !find correct interval
+    ival = 0
     if(value < x(2)) then
         ival = 1
     elseif(value > x(n-1)) then

@@ -1073,6 +1073,7 @@ subroutine plane_distributed_loads(t)
         t%sec(isec)%myp%Load_M(:) = 0.0
     end do
     !tie in external forces to closest structure !this should be same as in subroutine for viewing
+    min_isec = 0
     do iforce = 1,size(t%external_forces)
         do ipoint=1,t%external_forces(iforce)%datasize
             force_pos(:) = t%external_forces(iforce)%RawData(ipoint,1:3)
