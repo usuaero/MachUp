@@ -7,6 +7,7 @@ module view_m
     use wing_m
     use section_m
     use airfoil_m
+    use math_m
     implicit none
 
 contains
@@ -263,26 +264,26 @@ subroutine view_stl(t)
             do isec=1,t%wings(iwing)%nSec
                 si => t%wings(iwing)%sec(isec)
                 call view_create_local_airfoil(si%af1_a,si%af1_b,t%wings(iwing)%side,si%af_weight_1,si%chord_1,&
-                                            & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
+                                            & si%twist1,si%dihedral1,si%P1(:),af_points1)
                 call view_create_local_airfoil(si%af2_a,si%af2_b,t%wings(iwing)%side,si%af_weight_2,si%chord_2,&
-                                            & si%twist2,si%dihedral2,af_datasize,si%P2(:),af_points2)
+                                            & si%twist2,si%dihedral2,si%P2(:),af_points2)
                 call view_create_stl_shell(af_datasize,af_points1,af_points2)
             end do
         else
             if(t%wings(iwing)%side == 'right') then
                 si => t%wings(iwing)%sec(1)
                 call view_create_local_airfoil(si%af1_a,si%af1_b,t%wings(iwing)%side,si%af_weight_1,si%chord_1,&
-                        & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
+                        & si%twist1,si%dihedral1,si%P1(:),af_points1)
                 si => t%wings(iwing)%sec(t%wings(iwing)%nSec)
                 call view_create_local_airfoil(si%af2_a,si%af2_b,t%wings(iwing)%side,si%af_weight_2,si%chord_2,&
-                        & si%twist2,si%dihedral2,af_datasize,si%P2(:),af_points2)
+                        & si%twist2,si%dihedral2,si%P2(:),af_points2)
             else
                 si => t%wings(iwing)%sec(1)
                 call view_create_local_airfoil(si%af2_a,si%af2_b,t%wings(iwing)%side,si%af_weight_2,si%chord_2,&
-                                        & si%twist2,si%dihedral2,af_datasize,si%P2(:),af_points2)
+                                        & si%twist2,si%dihedral2,si%P2(:),af_points2)
                 si => t%wings(iwing)%sec(t%wings(iwing)%nSec)
                 call view_create_local_airfoil(si%af1_a,si%af1_b,t%wings(iwing)%side,si%af_weight_1,si%chord_1,&
-                                        & si%twist1,si%dihedral1,af_datasize,si%P1(:),af_points1)
+                                        & si%twist1,si%dihedral1,si%P1(:),af_points1)
             end if
 
             call view_create_stl_shell(af_datasize,af_points1,af_points2)
@@ -376,13 +377,22 @@ subroutine view_add_stl_triangle(P1,P2,P3)
 end subroutine view_add_stl_triangle
 
 !-----------------------------------------------------------------------------------------------------------
-subroutine view_create_local_airfoil(af1,af2,side,percent,chord,twist,dihedral,datasize,point,output)
-    type(airfoil_t),pointer :: af1
-    type(airfoil_t),pointer :: af2
-    character(5) :: side
-    real :: percent,chord,twist,dihedral
-    integer :: datasize,i
-    real :: point(3),output(datasize,3)
+subroutine view_create_local_airfoil(af1,af2,side,percent,chord,twist,dihedral,point,output)
+    type(airfoil_t),pointer, intent(in) :: af1
+    type(airfoil_t),pointer, intent(in) :: af2
+    character(5), intent(in) :: side
+    real, intent(in) :: percent, chord, twist, dihedral
+    real, dimension(3), intent(in) :: point
+    real, allocatable, dimension(:, :), intent(inout) :: output
+
+    real :: dih
+    integer :: i, af_datasize
+
+    af_datasize = af1%geom%datasize
+    if (af_datasize .ne. af2%geom%datasize) then
+        write(*,*) 'Airfoils ', af1%name, ' and ', af2%name,' must have same number of nodes.'
+        stop
+    end if
 
     output(:,1:2) = af1%geom%RawData(:,:) + percent*(af2%geom%RawData(:,:) - af1%geom%RawData(:,:))
     output(:,1) = output(:,1) - 0.25
@@ -392,14 +402,14 @@ subroutine view_create_local_airfoil(af1,af2,side,percent,chord,twist,dihedral,d
     output(:,2) = 0.0 !set y to zero
 
 
+    dih = dihedral
     if(side.eq.'left') then
-!        twist = -twist
-        dihedral = -dihedral
+        dih = -dihedral
     end if
 
-    do i=1,datasize
+    do i=1, af_datasize
         call math_rot_y(output(i,:),twist)
-        call math_rot_x(output(i,:),-dihedral)
+        call math_rot_x(output(i,:),-dih)
         output(i,:) = output(i,:) + point(:)
     end do
 
@@ -439,10 +449,8 @@ subroutine view_panair(t)
             cycle
         end if
 
-        ! Allocate space for the points on an airfoil
+        ! Make sure all airfoils have the same number of points
         af_datasize = t%wings(iwing)%airfoils(1)%p%geom%datasize
-        allocate(af_points(af_datasize,3))
-
         do i=1, t%wings(iwing)%nairfoils
             if(t%wings(iwing)%airfoils(i)%p%geom%datasize .ne. af_datasize) then
                 write(*,*) 'All airfoils for wing ',t%wings(iwing)%name,' must have same number of nodes.'
@@ -450,16 +458,20 @@ subroutine view_panair(t)
             end if
         end do
 
+        ! Allocate space for the points on an airfoil
+        if (mod(af_datasize, 2) .eq. 0) af_datasize = af_datasize + 1  ! Must be odd number of points for Panair!
+        allocate(af_points(af_datasize,3))
+
         ! Write the network header information
         call view_write_panair_network_header(t%wings(iwing)%ID)
 
         ! Write the upper network
         write(upper_network, '(A, I0)') 'upper_', t%wings(iwing)%ID
-        call view_write_panair_network(t%wings(iwing), af_datasize, af_points, trim(adjustl(upper_network)), af_datasize, af_datasize / 2 + 1)
+        call view_write_panair_network(t%wings(iwing), af_points, trim(adjustl(upper_network)), af_datasize, af_datasize / 2 + 1)
 
         ! Write the lower network
         write(lower_network, '(A, I0)') 'lower_', t%wings(iwing)%ID
-        call view_write_panair_network(t%wings(iwing), af_datasize, af_points, trim(adjustl(lower_network)), af_datasize / 2 + 1, 1)
+        call view_write_panair_network(t%wings(iwing), af_points, trim(adjustl(lower_network)), af_datasize / 2 + 1, 1)
 
         ! Attach a wake to the trailing edge of the upper network
         call view_write_panair_wake(trim(adjustl(upper_network)))
@@ -527,14 +539,13 @@ subroutine view_write_panair_network_header(iwing)
 end subroutine view_write_panair_network_header
 
 
-subroutine view_write_panair_network(wi, af_datasize, af_points, network, istart, iend)
+subroutine view_write_panair_network(wi, af_points, network, istart, iend)
     type(wing_t), intent(in) :: wi
-    integer, intent(in) :: af_datasize
     real, allocatable, dimension(:,:), intent(inout) :: af_points
     character(len=*), intent(in) :: network
     integer, intent(in) :: istart, iend
 
-    integer :: isec, isec_start, isec_end, isec_inc, isec_side1, isec_side2
+    integer :: isec, isec_start, isec_end, isec_inc
     type(section_t), pointer :: si
 
     write(10, "(A, T11, A)") "=nm", "nn"
@@ -544,37 +555,44 @@ subroutine view_write_panair_network(wi, af_datasize, af_points, network, istart
         isec_start = wi%nSec
         isec_end = 1
         isec_inc = -1
-        isec_side1 = 1
-        isec_side2 = 2
     else
         isec_start = 1
         isec_end = wi%nSec
         isec_inc = 1
-        isec_side1 = 1
-        isec_side2 = 2
     end if
 
     do isec = isec_start, isec_end, isec_inc
         si => wi%sec(isec)
-        call view_create_local_airfoil_panair(wi, si, isec_side1, af_datasize, af_points)
+        call view_create_local_airfoil_panair(wi, si, 1, af_points)
         call view_write_panair_points(istart, iend, af_points)
     end do
 
-    call view_create_local_airfoil_panair(wi, si, isec_side2, af_datasize, af_points)
+    call view_create_local_airfoil_panair(wi, si, 2, af_points)
     call view_write_panair_points(istart, iend, af_points)
 
 end subroutine view_write_panair_network
 
 
-subroutine view_create_local_airfoil_panair(wi, si, sec_side, af_datasize, af_points)
+subroutine view_create_local_airfoil_panair(wi, si, sec_side, af_points)
     type(wing_t), intent(in) :: wi
     type(section_t), pointer, intent(in) :: si
-    integer, intent(in) :: sec_side, af_datasize
-
+    integer, intent(in) :: sec_side
     real, allocatable, dimension(:,:), intent(inout) :: af_points
 
     real :: percent, chord, RA
-    integer :: i
+    integer :: i, mid
+    integer :: af_datasize
+
+    real :: a, b, c
+    real, dimension(3) :: midpoint
+
+    af_datasize = size(af_points, 1)
+    if (mod(af_datasize, 2) .eq. 0) then
+        write(*,*) "Allocated size of af_points must always be odd for Panair interface!"
+        write(*,*) "If the number of points on an airfoil is even, allocate af_points to"
+        write(*,*) "one more than this."
+        stop
+    end if
 
     if(sec_side .eq. 1) then
         percent = si%percent_1
@@ -593,13 +611,35 @@ subroutine view_create_local_airfoil_panair(wi, si, sec_side, af_datasize, af_po
 
     if(sec_side .eq. 1) then
         call view_create_local_airfoil(si%af1_a, si%af1_b, wi%side, si%af_weight_1, chord, &
-                & si%twist1, si%dihedral1, af_datasize, si%P1, af_points)
+                & si%twist1, si%dihedral1, si%P1, af_points)
     else if(sec_side .eq. 2) then
         call view_create_local_airfoil(si%af2_a, si%af2_b, wi%side, si%af_weight_2, chord, &
-                & si%twist2, si%dihedral2, af_datasize, si%P2, af_points)
+                & si%twist2, si%dihedral2, si%P2, af_points)
     else
         call view_create_local_airfoil(si%afc_a, si%afc_b, wi%side, si%af_weight_c, chord, &
-                & si%twist, si%dihedral, af_datasize, si%PC, af_points)
+                & si%twist, si%dihedral, si%PC, af_points)
+    end if
+
+    ! If the number of points on an airfoil is even, add an additional point at the leading edge
+    if (mod(si%af1_a%geom%datasize, 2) .eq. 0) then
+        ! Find the index of the second leading-edge point
+        mid = si%af1_a%geom%datasize / 2 + 1
+
+        ! Calculate the new midpoint between the first and second leading-edge points
+        midpoint(:) = 0.5 * (af_points(mid - 1, :) + af_points(mid, :))
+
+        ! Fit a parabola through three points at the leading edge
+        call quadratic_fit(af_points(mid - 1 : mid + 1, 3:1:-2), a, b, c)
+        if (.not. isnan(a) .and. .not. isnan(b) .and. .not. isnan(c)) then
+            midpoint(1) = a * midpoint(3)**2 + b * midpoint(3) + c
+        end if
+
+        ! Shift the last half of the point array to the end
+        af_points(si%af1_a%geom%datasize + 1 : mid + 1 : -1, :) = af_points(si%af1_a%geom%datasize : mid : -1, :)
+
+        ! Place the new midpoint between the two leading-edge points
+        af_points(mid, :) = midpoint(:)
+
     end if
 
     do i = 1, af_datasize
@@ -617,10 +657,10 @@ subroutine view_write_panair_points(istart, iend, af_points)
     integer :: ipt
 
     do ipt = istart, iend + 1, -2
-        write(10, "(6F10.6)") af_points(ipt, 1:3), af_points(ipt - 1, 1:3)
+        write(10, "(6F10.6)") af_points(ipt, :), af_points(ipt - 1, :)
     end do
     if (ipt == iend) then
-        write(10, "(3F10.6)") af_points(ipt, 1:3)
+        write(10, "(3F10.6)") af_points(ipt, :)
     end if
 end subroutine view_write_panair_points
 

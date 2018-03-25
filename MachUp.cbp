@@ -32,7 +32,6 @@
 				<Option parameters="input.json" />
 				<Compiler>
 					<Add option="-march=corei7" />
-					<Add option="-ffast-math" />
 					<Add option="-fexpensive-optimizations" />
 					<Add option="-O3" />
 					<Add option="-cpp" />
@@ -74,7 +73,6 @@
 				<Option parameters="input.json" />
 				<Compiler>
 					<Add option="-march=corei7" />
-					<Add option="-ffast-math" />
 					<Add option="-fexpensive-optimizations" />
 					<Add option="-O3" />
 					<Add option="-cpp" />

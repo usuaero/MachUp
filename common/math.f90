@@ -132,13 +132,13 @@ end subroutine math_rot_z
 !      integer :: io(n)
       real,allocatable,dimension(:,:) :: d
       integer,allocatable,dimension(:) :: io
-      
+
       allocate(d(n,2*n))
       allocate(io(n))
-      
+
       d(:,:) = 0.0
       io(:) = 0
-      
+
 !      write(6,*)'Inverting vortex panel matrix.  Please wait.'
 !      itime1=mclock()
 !     Fill in the "io" and "d" matrix.
@@ -230,11 +230,11 @@ SUBROUTINE math_AXB_LUD(n,A,B,X)
     INTEGER::n,D,info
     real,DIMENSION(n)::B,X
     real,DIMENSION(n,n)::A
-    
+
     INTEGER,allocatable,DIMENSION(:) :: INDX
-    
+
     allocate(INDX(n))
-    
+
     CALL math_LUDCMP(A,n,INDX,D,info)
     if(info.eq.0) then
         CALL math_LUBKSB(A,n,INDX,B)
@@ -244,7 +244,7 @@ SUBROUTINE math_AXB_LUD(n,A,B,X)
     end if
     X = B
     deallocate(INDX)
-    RETURN      
+    RETURN
 END SUBROUTINE math_AXB_LUD
 
 !*******************************************************
@@ -257,7 +257,7 @@ END SUBROUTINE math_AXB_LUD
 !* "Numerical Recipes By W.H. Press, B. P. Flannery,   *
 !*  S.A. Teukolsky and W.T. Vetterling, Cambridge      *
 !*  University Press, 1986" [BIBLI 08].                *
-!*                                                     * 
+!*                                                     *
 !*******************************************************
 !MODULE LU
 
@@ -284,7 +284,7 @@ END SUBROUTINE math_AXB_LUD
 
  allocate(VV(N))
 
- D=1; CODE=0
+ D=1; CODE=0; IMAX = 0
 
  DO I=1,N
    AMAX=0.0
@@ -302,7 +302,7 @@ END SUBROUTINE math_AXB_LUD
    DO I=1,J-1
      SUM = A(I,J)
      DO K=1,I-1
-       SUM = SUM - A(I,K)*A(K,J) 
+       SUM = SUM - A(I,K)*A(K,J)
      END DO ! k loop
      A(I,J) = SUM
    END DO ! i loop
@@ -310,7 +310,7 @@ END SUBROUTINE math_AXB_LUD
    DO I=J,N
      SUM = A(I,J)
      DO K=1,J-1
-       SUM = SUM - A(I,K)*A(K,J) 
+       SUM = SUM - A(I,K)*A(K,J)
      END DO ! k loop
      A(I,J) = SUM
      DUM = VV(I)*ABS(SUM)
@@ -318,8 +318,8 @@ END SUBROUTINE math_AXB_LUD
        IMAX = I
        AMAX = DUM
      END IF
-   END DO ! i loop  
-   
+   END DO ! i loop
+
    IF(J.NE.IMAX) THEN
      DO K=1,N
        DUM = A(IMAX,K)
@@ -338,7 +338,7 @@ END SUBROUTINE math_AXB_LUD
      DO I=J+1,N
        A(I,J) = A(I,J)*DUM
      END DO ! i loop
-   END IF 
+   END IF
  END DO ! j loop
 
  deallocate(VV)
@@ -391,8 +391,8 @@ END SUBROUTINE math_AXB_LUD
 
  RETURN
  END subroutine math_LUBKSB
- 
- 
+
+
 !C
 !C--------------------------------------------------------------------C
 !C The following subroutine computes the LU decomposition for a       C
@@ -410,7 +410,7 @@ END SUBROUTINE math_AXB_LUD
 
       do k=1,n-1
         do i=k+1,n
-          z=a(i,k)/a(k,k)                     !compute gauss factor 
+          z=a(i,k)/a(k,k)                     !compute gauss factor
           a(i,k)=z                            !store gauss factor in matrix
           do j=k+1,n
             a(i,j)=a(i,j)-z*a(k,j)            !apply row operation
@@ -449,6 +449,40 @@ END SUBROUTINE math_AXB_LUD
       enddo
       return
       end subroutine math_snyder_lusolv
+
+
+!C--------------------------------------------------------------------C
+!C The following subroutine fits a parabola through three specified   C
+!C points and returns the coefficients a, b, c defining this parabola C
+!C according to the equation y = a * x**2 + b * x + c                 C
+!C            pts = list of three (x, y) points                       C
+!C   Outputs: a, b, c = quadratic coefficients                        C
+!C                                                                    C
+!C--------------------------------------------------------------------C
+      subroutine quadratic_fit(pts, a, b, c)
+      implicit none
+      real, dimension(3, 2), intent(in) :: pts
+      real, intent(out) :: a, b, c
+
+      integer :: i
+      real, dimension(3, 3) :: m, m_inv
+      real, dimension(3) :: v, coeff
+
+      do i = 1, 3
+        m(i, 1) = pts(i, 1)**2
+        m(i, 2) = pts(i, 1)
+        m(i, 3) = 1.0
+      end do
+      call math_matinv(3, m, m_inv)
+
+      v(:) = pts(:, 2)
+      coeff = matmul(m_inv, v)
+
+      a = coeff(1)
+      b = coeff(2)
+      c = coeff(3)
+
+      end subroutine quadratic_fit
 
 
 end module math_m
