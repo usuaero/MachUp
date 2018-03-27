@@ -67,7 +67,7 @@ program main
                 case ('stl')
                     call view_stl(myplane)
                 case ('panair')
-                    call view_panair(myplane)
+                    call view_panair(myplane, json_command)
                 case ('plot')
                     call view_plotmtv(myplane)
                 case ('forces')

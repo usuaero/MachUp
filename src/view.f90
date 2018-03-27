@@ -417,12 +417,20 @@ end subroutine view_create_local_airfoil
 
 
 !-----------------------------------------------------------------------------------------------------------
-subroutine view_panair(t)
-    type(plane_t) :: t
+subroutine view_panair(t, json_command)
+    type(plane_t), intent(in) :: t
+    type(json_value), intent(in), pointer :: json_command
+
     real, allocatable, dimension(:,:) :: af_points
-    character(100) :: filename, upper_network, lower_network
+    character(100) :: filename, upper_network, lower_network, endcap_network
     integer :: i, iwing, af_datasize, symmetric
     integer :: ierror = 0
+
+    integer :: endcap_npts
+    real :: endcap_scale
+
+    call myjson_get(json_command, 'endcap_npts', endcap_npts, 0)
+    call myjson_get(json_command, 'endcap_scale', endcap_scale, 1.0)
 
     do i=1,size(airfoils)
         call af_create_geom_from_file(airfoils(i),DB_Airfoil)
@@ -463,7 +471,7 @@ subroutine view_panair(t)
         allocate(af_points(af_datasize,3))
 
         ! Write the network header information
-        call view_write_panair_network_header(t%wings(iwing)%ID)
+        call view_write_panair_network_header(t%wings(iwing))
 
         ! Write the upper network
         write(upper_network, '(A, I0)') 'upper_', t%wings(iwing)%ID
@@ -472,6 +480,12 @@ subroutine view_panair(t)
         ! Write the lower network
         write(lower_network, '(A, I0)') 'lower_', t%wings(iwing)%ID
         call view_write_panair_network(t%wings(iwing), af_points, trim(adjustl(lower_network)), af_datasize / 2 + 1, 1)
+
+        ! Write the endcap network
+        if(t%wings(iwing)%chord_2 >= 0.0) then
+            write(endcap_network, '(A, I0)') 'endcap_', t%wings(iwing)%ID
+            call view_write_panair_endcap(t%wings(iwing), af_points, trim(adjustl(endcap_network)), endcap_npts, endcap_scale)
+        end if
 
         ! Attach a wake to the trailing edge of the upper network
         call view_write_panair_wake(trim(adjustl(upper_network)))
@@ -526,13 +540,21 @@ subroutine view_write_panair_header(plane, symmetric)
 end subroutine view_write_panair_header
 
 
-subroutine view_write_panair_network_header(iwing)
-    integer, intent(in) :: iwing
+subroutine view_write_panair_network_header(wi)
+    type(wing_t), intent(in) :: wi
+
+    integer :: nnetworks
+
+    if(wi%chord_2 >= 0.0) then
+        nnetworks = 3
+    else
+        nnetworks = 2
+    end if
 
     ! Write header info
-    write(10, "(A, I0)") "$POINTS for wing ", iwing
+    write(10, "(A, I0)") "$POINTS for wing ", wi%ID
     write(10, "(A)") "=kn"  ! Number of networks in $POINTS block
-    write(10, "(A)") "2.0"
+    write(10, "(I0, T2, A)") nnetworks, ".0"
     write(10, "(A)") "=kt"  ! Boundary condition (1 = solid surface)
     write(10, "(A)") "1.0"
 
@@ -665,6 +687,62 @@ subroutine view_write_panair_points(istart, iend, af_points)
 end subroutine view_write_panair_points
 
 
+subroutine view_write_panair_endcap(wi, af_points, network, npts, rscale)
+    type(wing_t), intent(in) :: wi
+    real, allocatable, dimension(:, :), intent(inout) :: af_points
+    character(len=*), intent(in) :: network
+    integer, intent(in) :: npts
+    real, intent(in) :: rscale
+
+    real, allocatable, dimension(:, :) :: af_points_scaled, c
+    real :: r
+    real :: theta, theta_start, theta_end, dtheta
+    integer :: i, j, af_mid, af_end
+
+    ! Calculate the midpoint index
+    af_end = size(af_points, 1)
+    af_mid = (af_end + 1) / 2
+
+    ! Write the network header info
+    write(10, "(A, T11, A)") "=nm", "nn"
+    write(10, "(I0, T11, I0, T71, A)") af_mid, npts + 2, network
+
+    ! Get the airfoil points
+    call view_create_local_airfoil_panair(wi, wi%sec(wi%nSec), 2, af_points)
+    allocate(af_points_scaled(af_mid, 3))
+    allocate(c(af_mid, 3))
+
+    ! Set up theta
+    if(wi%side .eq. 'left') then
+        theta_start = 0.0
+        theta_end = pi
+    else
+        theta_start = pi
+        theta_end = 0.0
+    end if
+    dtheta = (theta_end - theta_start) / REAL(npts + 1)
+
+    ! calculate the centerline of the airfoil (not quite camber line...)
+    c(:, :) = 0.5 * (af_points(1:af_mid, :) + af_points(af_end:af_mid:-1, :))
+
+    theta = theta_start
+    do i = 1, npts + 2
+        ! Scale the airfoil points
+        do j = 1, af_mid
+            r = 0.5 * (af_points(af_end - j + 1, 3) - af_points(j, 3))
+            af_points_scaled(j, 1) = c(j, 1)
+            af_points_scaled(j, 2) = c(j, 2) + rscale * r * sin(theta)
+            af_points_scaled(j, 3) = c(j, 3) + r * cos(theta)
+        end do
+
+        call view_write_panair_points(af_mid, 1, af_points_scaled)
+
+        theta = theta + dtheta
+    end do
+
+end subroutine view_write_panair_endcap
+
+
 subroutine view_write_panair_wake(network)
     character(*), intent(in) :: network
     write(10, "(A)") "$TRAILING matchw=0"
@@ -674,7 +752,7 @@ subroutine view_write_panair_wake(network)
     write(10, "(A, T11, A)") "18.0", "0.0"
     write(10, "(A, T11, A, T21, A, T31, A)") "=inat", "insd", "xwake", "twake"
     write(10, "(A, T11, A, T21, A, T31, A, T71, A)") network, "1.0", "10.0", "0.0", "wake"
-end subroutine
+end subroutine view_write_panair_wake
 
 
 end module view_m
