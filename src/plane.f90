@@ -54,8 +54,6 @@ module plane_m
         type(dataset_t),allocatable,dimension(:) :: external_forces
         real,allocatable,dimension(:) :: external_force_mult
 
-        real :: larc_RA  ! Aspect ratio for low-aspect-ratio correction
-
     end type plane_t
 
         integer :: allocated
@@ -70,6 +68,7 @@ module plane_m
 
         !Airfoil Database
         character(200) :: DB_Airfoil
+        integer :: nairfoils
         type(airfoil_t),pointer,dimension(:) :: airfoils
 
 contains
@@ -136,13 +135,11 @@ end subroutine plane_set_defaults
 !-----------------------------------------------------------------------------------------------------------
 subroutine plane_load_json(t)
     type(plane_t) :: t
-    type(json_value),pointer :: j_this, j_wing, j_cont, j_afprop, j_afread, json_command, j_larc
+    type(json_value),pointer :: j_this, j_wing, j_cont, j_afprop, j_afread, json_command
     character(len=:),allocatable :: cval
     character(5) :: side
-    integer :: loc,i,iwing,nreadwings,iforce,icontrol,iairfoil,nairfoils,iaf
-    real :: sweep,dihedral,mount,washout
-    logical :: found
-    character(len=:), allocatable :: method
+    integer :: loc, i, j, iwing, nreadwings, iforce, icontrol, iaf
+    logical :: new_af
 
     call json_initialize()
 
@@ -212,17 +209,6 @@ subroutine plane_load_json(t)
         write(*,*)
     end if
 
-    ! Get low-aspect-ratio settings
-    call t%json%get('low_aspect_ratio_correction', j_larc, found)
-    if(found) then
-        call myjson_get(j_larc, 'method', method, 'None')
-        if (trim(adjustl(method)) /= 'None' .and. trim(adjustl(method)) /= 'Kuchemann') then
-            write(*, *) 'WARNING: Invalid low-aspect-ratio correction method specified: ', method
-            write(*, *) '         Valid methods are: None | Kuchemann'
-        end if
-        call myjson_get(j_larc, 'aspect_ratio', t%larc_RA)
-    end if
-
     ! Read Wings
     call t%json%get('wings', j_this)
     nreadwings = json_value_count(j_this)
@@ -250,128 +236,40 @@ subroutine plane_load_json(t)
     allocate(t%external_force_mult(iforce))
 
     iwing = 0
-    iairfoil = 0
+    nairfoils = 0
     do i=1,nreadwings
         iwing = iwing + 1
         call json_value_get(j_this,i,j_wing)
-        t%wings(iwing)%name = trim(j_wing%name)
+        call wing_load_json(t%wings(iwing), j_wing)
 
+        ! Read in airfoils
+        call json_get(j_wing, 'airfoils', j_afread)
+        do iaf = 1, t%wings(iwing)%nairfoils
+            call json_value_get(j_afread, iaf, json_command)
 
+            new_af = .TRUE.
+            do j = 1, nairfoils
+                if (airfoils(j)%name .eq. trim(json_command%name)) then
+                    new_af = .FALSE.
+                    t%wings(iwing)%airfoils(iaf)%p => airfoils(j)
+                    EXIT
+                end if
+            end do
 
-        call t%json%get('wings.'//trim(j_wing%name)//'.ID',                 t%wings(iwing)%ID); call json_check()
-        call t%json%get('wings.'//trim(j_wing%name)//'.side',                            cval); call json_check();
-                                                                                t%wings(iwing)%orig_side = trim(cval)
-        call t%json%get('wings.'//trim(j_wing%name)//'.connect.ID',  t%wings(iwing)%connectid); call json_check()
-        call t%json%get('wings.'//trim(j_wing%name)//'.connect.location',                cval); call json_check();
-                                                                                t%wings(iwing)%connectend = trim(cval)
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.connect.dx', t%wings(iwing)%doffset(1))
-!        call t%json%get('wings.'//trim(j_wing%name)//'.connect.dx', t%wings(iwing)%doffset(1)); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.connect.dy', t%wings(iwing)%doffset(2))
-!        call t%json%get('wings.'//trim(j_wing%name)//'.connect.dy', t%wings(iwing)%doffset(2)); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.connect.dz', t%wings(iwing)%doffset(3))
-!        call t%json%get('wings.'//trim(j_wing%name)//'.connect.dz', t%wings(iwing)%doffset(3)); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.connect.yoffset', t%wings(iwing)%dy)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.connect.yoffset',    t%wings(iwing)%dy); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.span', t%wings(iwing)%span)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.span',             t%wings(iwing)%span); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.sweep', sweep)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.sweep',                          sweep); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.dihedral', dihedral)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.dihedral',                    dihedral); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.mounting_angle', mount)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.mounting_angle',                 mount); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.washout', washout)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.washout',                      washout); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.root_chord', t%wings(iwing)%chord_1)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.root_chord',    t%wings(iwing)%chord_1); call json_check()
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.tip_chord', t%wings(iwing)%chord_2)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.tip_chord',     t%wings(iwing)%chord_2); call json_check()
+            if (new_af) then
+                nairfoils = nairfoils + 1
+                airfoils(nairfoils)%name = trim(json_command%name)
+                call t%json%get('wings.'//trim(j_wing%name)//'.airfoils.'//trim(json_command%name)//'.properties', j_afprop)
+                if (json_failed()) then  ! Read from airfoil database
+                    call json_clear_exceptions()
+                    call plane_load_airfoil(t, nairfoils, trim(json_command%name)//'.', 0)
+                else  ! Read from local file
+                    call plane_load_airfoil(t, nairfoils, 'wings.'//trim(j_wing%name)//'.airfoils.'//trim(json_command%name)//'.', 1)
+                end if
 
-        call t%json%get('wings.'//trim(j_wing%name)//'.sweep_definition', t%wings(iwing)%sweep_definition);
-        if(json_failed()) t%wings(iwing)%sweep_definition=1
-        call json_clear_exceptions()
-
-        ! Read Airfoils
-        call t%json%get('wings.'//trim(j_wing%name)//'.airfoils', j_afread)
-        nairfoils = json_value_count(j_afread) !just for this wing
-        t%wings(iwing)%nairfoils = nairfoils
-        call wing_allocate_airfoils(t%wings(iwing))
-
-        do iaf = 1, nairfoils
-            iairfoil = iairfoil + 1
-            call json_value_get(j_afread,iaf,json_command)
-            airfoils(iairfoil)%name = trim(json_command%name)
-            call t%json%get('wings.'//trim(j_wing%name)//'.airfoils.'//trim(json_command%name)//'.properties',  j_afprop);
-            if(json_failed()) then !Read from airfoil database
-                call json_clear_exceptions()
-                call plane_load_airfoil(t,iairfoil,trim(json_command%name)//'.',0)
-            else !Read from local file
-                call plane_load_airfoil(t,iairfoil,'wings.'//trim(j_wing%name)//'.airfoils.'//trim(json_command%name)//'.',1)
+                t%wings(iwing)%airfoils(iaf)%p => airfoils(nairfoils)
             end if
-            t%wings(iwing)%airfoils(iaf)%p => airfoils(iairfoil)
         end do
-
-
-        call t%json%get('wings.'//trim(j_wing%name)//'.grid',             t%wings(iwing)%nSec); call json_check()
-
-        !Grid clustering parameters
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.root_clustering', t%wings(iwing)%root_clustering, 1)
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.tip_clustering', t%wings(iwing)%tip_clustering, 1)
-
-        !control surface defs
-        call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.control.span_root', t%wings(iwing)%control_span_root, -1.0)
-!        call t%json%get('wings.'//trim(j_wing%name)//'.control.span_root', t%wings(iwing)%control_span_root);
-
-        if(t%wings(iwing)%control_span_root < 0.0) then
-            call json_clear_exceptions()
-            t%wings(iwing)%has_control_surface = 0
-        else
-            t%wings(iwing)%has_control_surface = 1
-!            call t%json%get('wings.'//trim(j_wing%name)//'.control.span_root', t%wings(iwing)%control_span_root);
-!            call json_check()
-            call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.control.span_tip', t%wings(iwing)%control_span_tip)
-!            call t%json%get('wings.'//trim(j_wing%name)//'.control.span_tip',  t%wings(iwing)%control_span_tip );
-!            call json_check()
-            call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.control.chord_root', t%wings(iwing)%control_chord_root)
-!            call t%json%get('wings.'//trim(j_wing%name)//'.control.chord_root', t%wings(iwing)%control_chord_root);
-!            call json_check()
-            call myjson_get(t%json, 'wings.'//trim(j_wing%name)//'.control.chord_tip', t%wings(iwing)%control_chord_tip)
-!            call t%json%get('wings.'//trim(j_wing%name)//'.control.chord_tip',  t%wings(iwing)%control_chord_tip );
-!            call json_check()
-            call t%json%get('wings.'//trim(j_wing%name)//'.control.is_sealed',  t%wings(iwing)%control_is_sealed);
-            call json_check()
-        end if
-
-        t%wings(iwing)%sweep = sweep*pi/180.0
-        t%wings(iwing)%dihedral = dihedral*pi/180.0
-        t%wings(iwing)%mount = mount*pi/180.0
-        t%wings(iwing)%washout = washout*pi/180.0
-
-        !Distributions defined by files
-        t%wings(iwing)%f_sweep         = 'none'
-        t%wings(iwing)%f_dihedral      = 'none'
-        t%wings(iwing)%f_washout       = 'none'
-        t%wings(iwing)%f_chord         = 'none'
-        t%wings(iwing)%f_af_ratio      = 'none'
-        t%wings(iwing)%f_EIGJ          = 'none'
-        t%wings(iwing)%f_elastic_twist = 'none'
-
-        !Read Distribution Files
-        call t%json%get('wings.'//trim(j_wing%name)//'.chord_file', cval);
-        if(.NOT.json_failed()) t%wings(iwing)%f_chord = cval
-        call json_clear_exceptions()
-        call t%json%get('wings.'//trim(j_wing%name)//'.sweep_file', cval);
-        if(.NOT.json_failed()) t%wings(iwing)%f_sweep = cval
-        call json_clear_exceptions()
-        call t%json%get('wings.'//trim(j_wing%name)//'.dihedral_file', cval);
-        if(.NOT.json_failed()) t%wings(iwing)%f_dihedral=cval
-        call json_clear_exceptions()
-        call t%json%get('wings.'//trim(j_wing%name)//'.washout_file', cval);
-        if(.NOT.json_failed()) t%wings(iwing)%f_washout = cval
-        call json_clear_exceptions()
-        call t%json%get('wings.'//trim(j_wing%name)//'.af_ratio_file', cval);
-        if(.NOT.json_failed()) t%wings(iwing)%f_af_ratio = cval
-        call json_clear_exceptions()
 
         !make sure wing is totally set up before continuing. Here it will mirror it to the other side
         if(t%wings(iwing)%orig_side .eq. 'both') then
@@ -719,14 +617,27 @@ end subroutine plane_run_current
 !-----------------------------------------------------------------------------------------------------------
 subroutine plane_case_setup(t)
     type(plane_t) :: t
-    integer :: i,j
+
+    integer :: i,j, isec, iwing
+    type(section_t),pointer :: si
+    real :: omega, CLa
+
     call plane_set_Uinf(t)
     call plane_set_control_deflections(t,1)
-    do i=1,t%nSize
-        do j=1,t%nSize
-            call plane_influence(t,i,j,t%sec(j)%myp%PC(:),t%vij(i,j,:))
+
+    i = 0
+    do iwing = 1, t%nwings
+        do isec = 1, t%wings(iwing)%nSec
+            i = i + 1
+            si => t%wings(iwing)%sec(isec)
+            call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
+
+            do j = 1, t%nSize
+                call plane_influence(t, j, i, si%PC(:), omega, t%vij(j, i, :))
+            end do
         end do
     end do
+
 end subroutine plane_case_setup
 
 !-----------------------------------------------------------------------------------------------------------
@@ -745,10 +656,14 @@ subroutine plane_set_Uinf(t)
 end subroutine plane_set_Uinf
 
 !-----------------------------------------------------------------------------------------------------------
-subroutine plane_influence(t,i,j,P,ans) !Influence of horseshoe i on point P (pass in j=0 if external point)
+subroutine plane_influence(t, i, j, P, omega, ans) !Influence of horseshoe i on point P (pass in j=0 if external point)
     type(plane_t) :: t
     integer :: i,j
-    real :: P(3),ans(3),r1(3),r2(3),mr1,mr2,vec1(3),vec2(3),vec(3),denom
+    real :: P(3)
+    real :: omega
+    real :: ans(3)
+
+    real :: r1(3),r2(3),mr1,mr2,vec1(3),vec2(3),vec(3),denom
 
     r1 = P(:) - t%sec(i)%myp%P1(:)
     r2 = P(:) - t%sec(i)%myp%P2(:)
@@ -757,7 +672,7 @@ subroutine plane_influence(t,i,j,P,ans) !Influence of horseshoe i on point P (pa
     call math_cross_product(t%Uinf(:),r1(:),vec1(:)) !trailing vortices aligned with freestream
     call math_cross_product(t%Uinf(:),r2(:),vec2(:))
     call math_cross_product(r1(:),r2(:),vec(:))
-    ans(:) = vec2(:)/(mr2*(mr2-dot_product(t%Uinf,r2))) - vec1(:)/(mr1*(mr1-dot_product(t%Uinf,r1)))
+    ans(:) = omega * (vec2(:)/(mr2*(mr2-dot_product(t%Uinf,r2))) - vec1(:)/(mr1*(mr1-dot_product(t%Uinf,r1))))
     denom = (mr1*mr2*(mr1*mr2+dot_product(r1,r2)))
     if(i.ne.j) ans(:) = ans(:) + (mr1+mr2)*vec(:)/denom
     ans(:) = t%sec(i)%myp%chord_c/(4.0*pi)*ans(:)
@@ -771,7 +686,7 @@ subroutine plane_solve(t)
     call cpu_time(time1)
 
     if((solver.eq.'linear') .or. (solution_exists.eq.0)) call plane_solve_linear(t)
-    if(solver.eq.'nonlinear') call plane_solve_Jacobian(t)
+    if(solver.eq.'nonlinear') call plane_solve_jacobian(t)
 
     !store gammas in section info for distributed loads
     do i=1,t%nSize
@@ -789,35 +704,33 @@ end subroutine plane_solve
 subroutine plane_solve_linear(t)
     type(plane_t) :: t
     type(section_t),pointer :: si
-    integer :: i,j
-    real :: vec(3),CLa
-    real :: omega, n, CLa_factor
+    integer :: i, j, isec, iwing
+    real :: vec(3)
+    real :: CLa, omega
 
     t%Gammas = 0.0
     if(t%verbose.eq.1) write(*,*) 'Running the linear solver.'
     call plane_update_alphas(t)
-    do i=1,t%nSize
-        si => t%sec(i)%myp
-        CLa = sec_CLa(si)
 
-        n = 1.0 - 1.0 / (2.0 * (1.0 + (CLa / (pi * t%larc_RA))**2)**0.25)
-        omega = 2.0 * n
-        CLa_factor = 2.0 * n / (1.0 - pi * n / tan(pi * n))
-        CLa = CLa * CLa_factor
+    i = 0
+    do iwing = 1, t%nwings
+        do isec = 1, t%wings(iwing)%nSec
+            i = i + 1
+            si => t%wings(iwing)%sec(isec)
+            call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
 
-        do j=1,t%nSize
-            t%Amat(i,j) = -omega * dot_product(t%vij(j,i,:),si%un(:))
+            do j = 1, t%nSize
+                t%Amat(i, j) = -omega * dot_product(t%vij(j, i, :), si%un(:))
+            end do
+            call math_cross_product(t%Uinf(:), si%zeta(:), vec(:))
+            t%Amat(i, i) = t%Amat(i, i) + 2.0 * math_mag(3, vec) / CLa
+            t%Bvec(i) = sec_CL(si) / sec_CLa(si) !this is slightly different than in the paper, but is the way Phillips actually does it
+            !And it appears to be correct to me. The way in the paper uses linear and small-angle approximations in order to
+            !simplify the expression for CL of the section. But this way just looks it up directly so can account for
+            !non-linearities and more accurate flap deflection.
         end do
-        call math_cross_product(t%Uinf(:),si%zeta(:),vec(:))
-        t%Amat(i,i) = t%Amat(i,i) + 2.0*math_mag(3,vec) / CLa
-!write(*,*) i,t%Amat(i,i)
-!write(*,*) si%PC(:)
-        t%Bvec(i) = sec_CL(si) / sec_CLa(si) !this is slightly different than in the paper, but is the way Phillips actually does it
-        !And it appears to be correct to me. The way in the paper uses linear and small-angle approximations in order to
-        !simplify the expression for CL of the section. But this way just looks it up directly so can account for
-        !non-linearities and more accurate flap deflection.
-!write(*,*) 'Bvec ',i,t%Bvec(i), 'alpha ',si%alpha
     end do
+
 !    call math_matinv(t%nSize,t%Amat,t%Ainv) !This is very slow!
 !    t%Gammas = matmul(t%Ainv,t%Bvec)
     call math_snyder_ludcmp(t%Amat,t%nSize)
@@ -850,8 +763,9 @@ end subroutine plane_update_alphas
 subroutine plane_solve_jacobian(t)
     type(plane_t) :: t
     type(section_t),pointer :: si
-    integer :: i,j,iter
-    real :: w(3),vn,va,vi(3),vec(3),error,CLa,dGamma(t%nSize)
+    integer :: i, j, iter, isec, iwing
+    real :: w(3),vn,va,vi(3),vec(3),error,dGamma(t%nSize)
+    real :: CLa, omega
     110 FORMAT (1X, I10, 100ES25.16)
 
     if(t%verbose.eq.1) write(*,*) 'Running the Jacobian solver.'
@@ -866,26 +780,33 @@ subroutine plane_solve_jacobian(t)
     do while (error > jacobian_converged)
         iter = iter + 1
         call plane_update_alphas(t)
-        do i=1,t%nSize
-            si => t%sec(i)%myp
-            vi = si%v
-            call math_cross_product(vi(:),si%zeta(:),w(:))
-            vn = dot_product(vi(:),si%un(:))
-            va = dot_product(vi(:),si%ua(:))
-            CLa = sec_CLa(si)
-            do j=1,t%nSize
-                call math_cross_product(t%vij(j,i,:),si%zeta(:),vec(:))
-                t%Amat(i,j) = 2.0*dot_product(w,vec)/math_mag(3,w)*t%Gammas(i) &
-                          & - CLa*(va*dot_product(t%vij(j,i,:),si%un(:)) &
-                          & - vn*dot_product(t%vij(j,i,:),si%ua(:)))/(va**2+vn**2)
+
+        i = 0
+        do iwing = 1, t%nwings
+            do isec = 1, t%wings(iwing)%nSec
+                i = i + 1
+                si => t%wings(iwing)%sec(isec)
+                vi = si%v
+                call math_cross_product(vi(:), si%zeta(:), w(:))
+                vn = dot_product(vi(:), si%un(:))
+                va = dot_product(vi(:), si%ua(:))
+                call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
+
+                do j=1,t%nSize
+                    call math_cross_product(t%vij(j,i,:), si%zeta(:), vec(:))
+                    t%Amat(i,j) = 2.0*dot_product(w,vec)/math_mag(3,w)*t%Gammas(i) &
+                            & - CLa*(va*dot_product(t%vij(j,i,:),si%un(:)) &
+                            & - vn*dot_product(t%vij(j,i,:),si%ua(:)))/(va**2+vn**2)
+                end do
+
+                t%Amat(i,i) = t%Amat(i,i) + 2.0*math_mag(3,w)
+                t%Bvec(i) = 2.0*math_mag(3,w)*t%Gammas(i) - sec_CL(si) / sec_CLa(si) * CLa
             end do
-            t%Amat(i,i) = t%Amat(i,i) + 2.0*math_mag(3,w)
-            t%Bvec(i) = 2.0*math_mag(3,w)*t%Gammas(i) - sec_CL(si)
         end do
-        call math_snyder_ludcmp(t%Amat,t%nSize)
-        call math_snyder_lusolv(t%Amat,-t%Bvec,dGamma,t%nSize)
-!        call math_matinv(t%nSize,t%Amat,t%Ainv)
-!        dGamma = matmul(t%Ainv,-t%Bvec)
+
+        call math_snyder_ludcmp(t%Amat, t%nSize)
+        call math_snyder_lusolv(t%Amat, -t%Bvec, dGamma, t%nSize)
+
         error = sqrt(dot_product(t%Bvec,t%Bvec))
         t%Gammas(:) = t%Gammas(:) + jacobian_omega*dGamma(:)
         if(t%verbose.eq.1) write(*,110) iter,error
@@ -893,7 +814,14 @@ subroutine plane_solve_jacobian(t)
             exit
         end if
     end do
-    if(t%verbose.eq.1) write(*,*) 'Solution successfully converged.'
+
+    if(t%verbose.eq.1) then
+        if (iter <= nonlinear_maxiter) then
+            write(*,*) 'Solution successfully converged.'
+        else
+            write(*,*) 'Solution did not converge!'
+        end if
+    end if
 end subroutine plane_solve_jacobian
 
 !-----------------------------------------------------------------------------------------------------------

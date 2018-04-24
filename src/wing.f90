@@ -55,6 +55,10 @@ module wing_m
         !possible files
         character(100) :: f_sweep, f_dihedral, f_washout, f_chord, f_af_ratio
         character(100) :: f_EIGJ, f_elastic_twist
+
+        ! Low aspect-ratio corrections
+        character(10) :: larc_method
+
     end type wing_t
 
 contains
@@ -76,6 +80,91 @@ subroutine wing_deallocate(t)
     type(wing_t) :: t
     deallocate(t%sec)
 end subroutine wing_deallocate
+
+!-----------------------------------------------------------------------------------------------------------
+subroutine wing_load_json(t, j_wing)
+    type(wing_t), intent(inout) :: t
+    type(json_value), pointer, intent(in) :: j_wing
+
+    type(json_value), pointer :: j_afread
+    character(len=:), allocatable :: cval
+    real :: sweep, dihedral, mount, washout
+    integer :: nairfoils
+
+    t%name = trim(j_wing%name)
+
+    call myjson_get(j_wing, 'ID', t%ID)
+    call myjson_get(j_wing, 'side', cval);  t%orig_side = trim(cval)
+    call myjson_get(j_wing, 'connect.ID', t%connectid)
+    call myjson_get(j_wing, 'connect.location', cval); t%connectend = trim(cval)
+
+    call myjson_get(j_wing, 'connect.dx', t%doffset(1))
+    call myjson_get(j_wing, 'connect.dy', t%doffset(2))
+    call myjson_get(j_wing, 'connect.dz', t%doffset(3))
+    call myjson_get(j_wing, 'connect.yoffset', t%dy)
+
+    call myjson_get(j_wing, 'span', t%span)
+    call myjson_get(j_wing, 'sweep', sweep)
+    call myjson_get(j_wing, 'dihedral', dihedral)
+    call myjson_get(j_wing, 'mounting_angle', mount)
+    call myjson_get(j_wing, 'washout', washout)
+
+    call myjson_get(j_wing, 'root_chord', t%chord_1)
+    call myjson_get(j_wing, 'tip_chord', t%chord_2)
+
+    call myjson_get(j_wing, 'sweep_definition', t%sweep_definition, 1)
+
+    ! Allocate airfoils, but don't read in yet (plane maintains a global list of airfoils)
+    call json_get(j_wing, 'airfoils', j_afread)
+    nairfoils = json_value_count(j_afread) !just for this wing
+    t%nairfoils = nairfoils
+    call wing_allocate_airfoils(t)
+
+    call myjson_get(j_wing, 'grid', t%nSec)
+
+    !Grid clustering parameters
+    call myjson_get(j_wing, 'root_clustering', t%root_clustering, 1)
+    call myjson_get(j_wing, 'tip_clustering', t%tip_clustering, 1)
+
+    !control surface defs
+    call myjson_get(j_wing, 'control.span_root', t%control_span_root, -1.0)
+
+    if (t%control_span_root < 0.0) then
+        t%has_control_surface = 0
+    else
+        t%has_control_surface = 1
+        call myjson_get(j_wing, 'control.span_tip', t%control_span_tip)
+        call myjson_get(j_wing, 'control.chord_root', t%control_chord_root)
+        call myjson_get(j_wing, 'control.chord_tip', t%control_chord_tip)
+        call myjson_get(j_wing, 'control.is_sealed',  t%control_is_sealed);
+    end if
+
+    t%sweep = sweep * pi / 180.0
+    t%dihedral = dihedral * pi / 180.0
+    t%mount = mount * pi / 180.0
+    t%washout = washout * pi / 180.0
+
+    !Distributions defined by files
+    t%f_EIGJ          = 'none'
+    t%f_elastic_twist = 'none'
+
+    !Read Distribution Files
+    call myjson_get(j_wing, 'chord_file', cval, 'none');  t%f_chord = cval
+    call myjson_get(j_wing, 'sweep_file', cval, 'none');  t%f_sweep = cval
+    call myjson_get(j_wing, 'dihedral_file', cval, 'none');  t%f_dihedral = cval
+    call myjson_get(j_wing, 'washout_file', cval, 'none');  t%f_washout = cval
+    call myjson_get(j_wing, 'af_ratio_file', cval, 'none');  t%f_af_ratio = cval
+
+    ! Get low-aspect-ratio settings
+    call myjson_get(j_wing, 'low_aspect_ratio_method', cval, 'none')
+    if (cval /= 'none' .and. cval /= 'Kuchemann' .and. cval /= 'Jones') then
+        write(*, *) 'WARNING: Invalid low-aspect-ratio correction method specified: ', cval
+        write(*, *) '         Valid methods are: none | Kuchemann | Jones'
+        t%larc_method = 'none'
+    else
+        t%larc_method = cval
+    end if
+end subroutine
 
 !-----------------------------------------------------------------------------------------------------------
 subroutine wing_setup(t,start)
@@ -438,6 +527,46 @@ subroutine wing_write_attributes(t)
     write(*,*) '          z : [',t%root(3),']'
     write(*,*) '       span : [',t%span,']'
 end subroutine wing_write_attributes
+
+!-----------------------------------------------------------------------------------------------------------
+subroutine wing_sec_CLa_lowra(t, secCLa, adjustedCLa, omega)
+    type(wing_t), intent(in) :: t
+    real, intent(in) :: secCLa
+    real, intent(out) :: adjustedCLa
+    real, intent(out) :: omega
+
+    real :: n, ra  ! Kuchemann
+    real :: a, b, h, p, E  ! Jones
+
+    if (t%larc_method .eq. 'Kuchemann') then
+        ! Calculate wing aspect ratio
+        ra = 2.0 * t%span**2 / t%area  ! Multiply by 2 because this is a semispan
+
+        ! Calculate new CLa, omega based on Kuchemann
+        n = 1.0 - 1.0 / (2.0 * (1.0 + (secCLa / (pi * ra))**2)**0.25)  ! Eq. 25b
+        adjustedCLa = secCLa * 2.0 * n / (1.0 - pi * n / tan(pi * n))  ! Eq. 13
+        omega = 2.0 * n  ! See paragraph after Eq. 14
+    else if (t%larc_method .eq. 'Jones') then
+        ! Estimate the perimeter
+        if (t%chord_2 .lt. 0.0) then  ! Elliptic wing
+            a = t%span
+            b = t%chord_1 / 2.0
+            h = ((a - b) / (a + b))**2
+            p = 0.5 * pi * (a + b) * (1.0 + 3.0 * h / (10.0 + sqrt(4.0 - 3.0 * h)))
+        else ! Assume rectangular planform with avg chord
+            p = 2.0 * t%span + 0.5 * (t%chord_1 + t%chord_2)
+        end if
+
+        E = p / (2.0 * t%span)
+        adjustedCLa = secCLa / E
+        omega = 1.0
+
+    else
+        adjustedCLa = secCLa
+        omega = 1.0
+    end if
+
+end subroutine wing_sec_CLa_lowra
 
 
 end module wing_m

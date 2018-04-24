@@ -236,7 +236,7 @@ subroutine view_stl(t)
     integer :: i,iwing,isec,af_datasize
     integer :: ierror = 0
 
-    do i=1,size(airfoils)
+    do i=1, nairfoils
         call af_create_geom_from_file(airfoils(i),DB_Airfoil)
     end do
 
@@ -432,7 +432,7 @@ subroutine view_panair(t, json_command)
     call myjson_get(json_command, 'endcap_npts', endcap_npts, 0)
     call myjson_get(json_command, 'endcap_scale', endcap_scale, 1.0)
 
-    do i=1,size(airfoils)
+    do i=1, nairfoils
         call af_create_geom_from_file(airfoils(i),DB_Airfoil)
     end do
 
@@ -488,7 +488,7 @@ subroutine view_panair(t, json_command)
         end if
 
         ! Attach a wake to the trailing edge of the upper network
-        call view_write_panair_wake(trim(adjustl(upper_network)))
+        call view_write_panair_wake(t%wings(iwing)%ID, trim(adjustl(upper_network)))
         deallocate(af_points)
     end do
 
@@ -743,15 +743,17 @@ subroutine view_write_panair_endcap(wi, af_points, network, npts, rscale)
 end subroutine view_write_panair_endcap
 
 
-subroutine view_write_panair_wake(network)
+subroutine view_write_panair_wake(id, network)
+    integer, intent(in) :: id
     character(*), intent(in) :: network
+
     write(10, "(A)") "$TRAILING matchw=0"
     write(10, "(A)") "=kn"
     write(10, "(A)") "1.0"
     write(10, "(A, T11, A)") "=kt", "matchw"
     write(10, "(A, T11, A)") "18.0", "0.0"
     write(10, "(A, T11, A, T21, A, T31, A)") "=inat", "insd", "xwake", "twake"
-    write(10, "(A, T11, A, T21, A, T31, A, T71, A)") network, "1.0", "10.0", "0.0", "wake"
+    write(10, "(A, T11, A, T21, A, T31, A, T71, A, T76, I0)") network, "1.0", "10.0", "0.0", "wake_", id
 end subroutine view_write_panair_wake
 
 
