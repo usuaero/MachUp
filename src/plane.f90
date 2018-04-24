@@ -54,6 +54,8 @@ module plane_m
         type(dataset_t),allocatable,dimension(:) :: external_forces
         real,allocatable,dimension(:) :: external_force_mult
 
+        real :: larc_RA  ! Aspect ratio for low-aspect-ratio correction
+
     end type plane_t
 
         integer :: allocated
@@ -134,11 +136,13 @@ end subroutine plane_set_defaults
 !-----------------------------------------------------------------------------------------------------------
 subroutine plane_load_json(t)
     type(plane_t) :: t
-    type(json_value),pointer :: j_this, j_wing, j_cont, j_afprop, j_afread, json_command
+    type(json_value),pointer :: j_this, j_wing, j_cont, j_afprop, j_afread, json_command, j_larc
     character(len=:),allocatable :: cval
     character(5) :: side
     integer :: loc,i,iwing,nreadwings,iforce,icontrol,iairfoil,nairfoils,iaf
     real :: sweep,dihedral,mount,washout
+    logical :: found
+    character(len=:), allocatable :: method
 
     call json_initialize()
 
@@ -206,6 +210,17 @@ subroutine plane_load_json(t)
             write(*,*) '  : ',trim(t%controls(icontrol)%name), ' ',t%controls(icontrol)%deflection*180.0/pi, ' (deg)'
         end do
         write(*,*)
+    end if
+
+    ! Get low-aspect-ratio settings
+    call t%json%get('low_aspect_ratio_correction', j_larc, found)
+    if(found) then
+        call myjson_get(j_larc, 'method', method, 'None')
+        if (trim(adjustl(method)) /= 'None' .and. trim(adjustl(method)) /= 'Kuchemann') then
+            write(*, *) 'WARNING: Invalid low-aspect-ratio correction method specified: ', method
+            write(*, *) '         Valid methods are: None | Kuchemann'
+        end if
+        call myjson_get(j_larc, 'aspect_ratio', t%larc_RA)
     end if
 
     ! Read Wings
@@ -367,6 +382,7 @@ subroutine plane_load_json(t)
         else
             t%wings(iwing)%side = t%wings(iwing)%orig_side
         end if
+
     end do
 
     if(t%groundplane .eq. 1) then
@@ -775,6 +791,7 @@ subroutine plane_solve_linear(t)
     type(section_t),pointer :: si
     integer :: i,j
     real :: vec(3),CLa
+    real :: omega, n, CLa_factor
 
     t%Gammas = 0.0
     if(t%verbose.eq.1) write(*,*) 'Running the linear solver.'
@@ -782,14 +799,20 @@ subroutine plane_solve_linear(t)
     do i=1,t%nSize
         si => t%sec(i)%myp
         CLa = sec_CLa(si)
+
+        n = 1.0 - 1.0 / (2.0 * (1.0 + (CLa / (pi * t%larc_RA))**2)**0.25)
+        omega = 2.0 * n
+        CLa_factor = 2.0 * n / (1.0 - pi * n / tan(pi * n))
+        CLa = CLa * CLa_factor
+
         do j=1,t%nSize
-            t%Amat(i,j) = -CLa*dot_product(t%vij(j,i,:),si%un(:))
+            t%Amat(i,j) = -omega * dot_product(t%vij(j,i,:),si%un(:))
         end do
         call math_cross_product(t%Uinf(:),si%zeta(:),vec(:))
-        t%Amat(i,i) = t%Amat(i,i) + 2.0*math_mag(3,vec)
+        t%Amat(i,i) = t%Amat(i,i) + 2.0*math_mag(3,vec) / CLa
 !write(*,*) i,t%Amat(i,i)
 !write(*,*) si%PC(:)
-        t%Bvec(i) = sec_CL(si) !this is slightly different than in the paper, but is the way Phillips actually does it
+        t%Bvec(i) = sec_CL(si) / sec_CLa(si) !this is slightly different than in the paper, but is the way Phillips actually does it
         !And it appears to be correct to me. The way in the paper uses linear and small-angle approximations in order to
         !simplify the expression for CL of the section. But this way just looks it up directly so can account for
         !non-linearities and more accurate flap deflection.
