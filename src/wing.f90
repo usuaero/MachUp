@@ -529,23 +529,25 @@ subroutine wing_write_attributes(t)
 end subroutine wing_write_attributes
 
 !-----------------------------------------------------------------------------------------------------------
-subroutine wing_sec_CLa_lowra(t, secCLa, adjustedCLa, omega)
+subroutine wing_lowra_resistances(t, secCLa, resistance_e, resistance_i)
     type(wing_t), intent(in) :: t
     real, intent(in) :: secCLa
-    real, intent(out) :: adjustedCLa
-    real, intent(out) :: omega
+    real, intent(out) :: resistance_e
+    real, intent(out) :: resistance_i
 
-    real :: n, ra  ! Kuchemann
-    real :: a, b, h, p, E  ! Jones
+    real :: ra  ! Aspect ratio
+    real :: n  ! Kuchemann
+    real :: a, b, h, dc, edge1, edge2, p, E  ! Jones
+
+    ! Calculate wing aspect ratio
+    ra = 2.0 * t%span**2 / t%area  ! Multiply aspect ratio by 2 because this is a semispan
 
     if (t%larc_method .eq. 'Kuchemann') then
-        ! Calculate wing aspect ratio
-        ra = 2.0 * t%span**2 / t%area  ! Multiply by 2 because this is a semispan
-
-        ! Calculate new CLa, omega based on Kuchemann
+        ! Calculate resistance values based on Kuchemann
         n = 1.0 - 1.0 / (2.0 * (1.0 + (secCLa / (pi * ra))**2)**0.25)  ! Eq. 25b
-        adjustedCLa = secCLa * 2.0 * n / (1.0 - pi * n / tan(pi * n))  ! Eq. 13
-        omega = 2.0 * n  ! See paragraph after Eq. 14
+        resistance_e = 2.0 * n * secCLa / (1.0 - pi * n / tan(pi * n)) ! Eq. 13
+        resistance_i = pi * ra / (2.0 * n)  ! See paragraph after Eq. 14
+
     else if (t%larc_method .eq. 'Jones') then
         ! Estimate the perimeter
         if (t%chord_2 .lt. 0.0) then  ! Elliptic wing
@@ -553,20 +555,40 @@ subroutine wing_sec_CLa_lowra(t, secCLa, adjustedCLa, omega)
             b = t%chord_1 / 2.0
             h = ((a - b) / (a + b))**2
             p = 0.5 * pi * (a + b) * (1.0 + 3.0 * h / (10.0 + sqrt(4.0 - 3.0 * h)))
-        else ! Assume rectangular planform with avg chord
-            p = 2.0 * t%span + 0.5 * (t%chord_1 + t%chord_2)
+        else ! Assume tapered planform
+            dc = max(t%chord_1, t%chord_2) - min(t%chord_1, t%chord_2)
+            edge1 = sqrt((0.25 * dc)**2 + t%span**2)
+            edge2 = sqrt((0.75 * dc)**2 + t%span**2)
+            p = edge1 + edge2 + t%chord_2
         end if
 
         E = p / (2.0 * t%span)
-        adjustedCLa = secCLa / E
-        omega = 1.0
+        resistance_e = secCLa / E
+        resistance_i = pi * ra
 
-    else
-        adjustedCLa = secCLa
-        omega = 1.0
+    else if (t%larc_method .eq. 'Hodson') then
+        resistance_e = secCLa
+        resistance_i = ra * (pi - atan(2.0 * secCLa / (pi * ra)))
+
+    else if (t%larc_method .eq. 'Helmbold') then
+        resistance_e = 1.0 / sqrt(1.0 / secCLa**2 + 1.0 / (pi * ra)**2)
+        resistance_i = pi * ra
+
+    else if (t%larc_method .eq. 'Slender') then
+        resistance_e = 1.0e30  ! Infinity
+        resistance_i = pi * ra / 2.0
+
+    else if (t%larc_method .eq. 'ModifiedSlender') then
+        resistance_e = secCLa
+        resistance_i = pi * ra / 2.0
+
+    else  ! Classical (default)
+        resistance_e = secCLa
+        resistance_i = pi * ra
+
     end if
 
-end subroutine wing_sec_CLa_lowra
+end subroutine wing_lowra_resistances
 
 
 end module wing_m

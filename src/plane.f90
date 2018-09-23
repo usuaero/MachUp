@@ -621,9 +621,14 @@ subroutine plane_case_setup(t)
     integer :: i,j, isec, iwing
     type(section_t),pointer :: si
     real :: omega, CLa
+    real :: resistance_e, resistance_i, ra
 
     call plane_set_Uinf(t)
     call plane_set_control_deflections(t,1)
+
+    ra = 2.0 * t%wings(1)%span**2 / t%wings(1)%area  ! Multiply by 2 because this is a semispan
+    ! TODO: This is only correct for single isolated wings. Models with multiple wings must use
+    !       the wing aspect ratio of the wing which section i belongs to.
 
     i = 0
     do iwing = 1, t%nwings
@@ -631,6 +636,8 @@ subroutine plane_case_setup(t)
             i = i + 1
             si => t%wings(iwing)%sec(isec)
             call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
+            call wing_lowra_resistances(t%wings(iwing), sec_CLa(si), resistance_e, resistance_i)
+            omega = (pi * ra) / resistance_i
 
             do j = 1, t%nSize
                 call plane_influence(t, j, i, si%PC(:), omega, t%vij(j, i, :))
@@ -707,24 +714,31 @@ subroutine plane_solve_linear(t)
     integer :: i, j, isec, iwing
     real :: vec(3)
     real :: CLa, omega
+    real :: resistance_e, resistance_i, ra
 
     t%Gammas = 0.0
     if(t%verbose.eq.1) write(*,*) 'Running the linear solver.'
     call plane_update_alphas(t)
+
+    ra = 2.0 * t%wings(1)%span**2 / t%wings(1)%area  ! Multiply by 2 because this is a semispan
+    ! TODO: This is only correct for single isolated wings. Models with multiple wings must use
+    !       the wing aspect ratio of the wing which section i belongs to.
 
     i = 0
     do iwing = 1, t%nwings
         do isec = 1, t%wings(iwing)%nSec
             i = i + 1
             si => t%wings(iwing)%sec(isec)
-            call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
+            CLa = sec_CLa(si)
+            call wing_lowra_resistances(t%wings(iwing), sec_CLa(si), resistance_e, resistance_i)
+            omega = (pi * ra) / resistance_i
 
             do j = 1, t%nSize
-                t%Amat(i, j) = -omega * dot_product(t%vij(j, i, :), si%un(:))
+                t%Amat(i, j) = -CLa * dot_product(t%vij(j, i, :), si%un(:))
             end do
             call math_cross_product(t%Uinf(:), si%zeta(:), vec(:))
-            t%Amat(i, i) = t%Amat(i, i) + 2.0 * math_mag(3, vec) / CLa
-            t%Bvec(i) = sec_CL(si) / sec_CLa(si) !this is slightly different than in the paper, but is the way Phillips actually does it
+            t%Amat(i, i) = t%Amat(i, i) + 2.0 * math_mag(3, vec) * (CLa / resistance_e)
+            t%Bvec(i) = sec_CL(si) !this is slightly different than in the paper, but is the way Phillips actually does it
             !And it appears to be correct to me. The way in the paper uses linear and small-angle approximations in order to
             !simplify the expression for CL of the section. But this way just looks it up directly so can account for
             !non-linearities and more accurate flap deflection.
@@ -766,6 +780,7 @@ subroutine plane_solve_jacobian(t)
     integer :: i, j, iter, isec, iwing
     real :: w(3),vn,va,vi(3),vec(3),error,dGamma(t%nSize)
     real :: CLa, omega
+    real :: resistance_e, resistance_i, ra
     110 FORMAT (1X, I10, 100ES25.16)
 
     if(t%verbose.eq.1) write(*,*) 'Running the Jacobian solver.'
@@ -775,6 +790,11 @@ subroutine plane_solve_jacobian(t)
     if(t%verbose.eq.1) write(*,*) '-------------------------------------------------'
     if(t%verbose.eq.1) write(*,*)
     if(t%verbose.eq.1) write(*,*) ' iteration   residual'
+
+    ra = 2.0 * t%wings(1)%span**2 / t%wings(1)%area  ! Multiply by 2 because this is a semispan
+    ! TODO: This is only correct for single isolated wings. Models with multiple wings must use
+    !       the wing aspect ratio of the wing which section i belongs to.
+
     iter = 0
     error = 100.0
     do while (error > jacobian_converged)
@@ -791,6 +811,9 @@ subroutine plane_solve_jacobian(t)
                 vn = dot_product(vi(:), si%un(:))
                 va = dot_product(vi(:), si%ua(:))
                 call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
+                call wing_lowra_resistances(t%wings(iwing), sec_CLa(si), resistance_e, resistance_i)
+                omega = (pi * ra) / resistance_i
+                CLa = resistance_e
 
                 do j=1,t%nSize
                     call math_cross_product(t%vij(j,i,:), si%zeta(:), vec(:))
