@@ -620,22 +620,17 @@ subroutine plane_case_setup(t)
 
     integer :: i,j, isec, iwing
     type(section_t),pointer :: si
-    real :: omega, CLa
-    real :: resistance_e, resistance_i, ra
+    real :: resistance_e, resistance_i, ra, omega
 
     call plane_set_Uinf(t)
     call plane_set_control_deflections(t,1)
 
-    ra = 2.0 * t%wings(1)%span**2 / t%wings(1)%area  ! Multiply by 2 because this is a semispan
-    ! TODO: This is only correct for single isolated wings. Models with multiple wings must use
-    !       the wing aspect ratio of the wing which section i belongs to.
-
     i = 0
     do iwing = 1, t%nwings
+        ra = 2.0 * t%wings(iwing)%span**2 / t%wings(iwing)%area  ! Multiply by 2 because this is a semispan
         do isec = 1, t%wings(iwing)%nSec
             i = i + 1
             si => t%wings(iwing)%sec(isec)
-            call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
             call wing_lowra_resistances(t%wings(iwing), sec_CLa(si), resistance_e, resistance_i)
             omega = (pi * ra) / resistance_i
 
@@ -667,7 +662,7 @@ subroutine plane_influence(t, i, j, P, omega, ans) !Influence of horseshoe i on 
     type(plane_t) :: t
     integer :: i,j
     real :: P(3)
-    real :: omega
+    real :: omega  ! Low-aspect-ratio correction factor to induced downwash term
     real :: ans(3)
 
     real :: r1(3),r2(3),mr1,mr2,vec1(3),vec2(3),vec(3),denom
@@ -713,8 +708,7 @@ subroutine plane_solve_linear(t)
     type(section_t),pointer :: si
     integer :: i, j, isec, iwing
     real :: vec(3)
-    real :: CLa, omega
-    real :: resistance_e, resistance_i, ra
+    real :: resistance_e, resistance_i, ra, CLa
 
     t%Gammas = 0.0
     if(t%verbose.eq.1) write(*,*) 'Running the linear solver.'
@@ -731,7 +725,6 @@ subroutine plane_solve_linear(t)
             si => t%wings(iwing)%sec(isec)
             CLa = sec_CLa(si)
             call wing_lowra_resistances(t%wings(iwing), sec_CLa(si), resistance_e, resistance_i)
-            omega = (pi * ra) / resistance_i
 
             do j = 1, t%nSize
                 t%Amat(i, j) = -CLa * dot_product(t%vij(j, i, :), si%un(:))
@@ -779,8 +772,8 @@ subroutine plane_solve_jacobian(t)
     type(section_t),pointer :: si
     integer :: i, j, iter, isec, iwing
     real :: w(3),vn,va,vi(3),vec(3),error,dGamma(t%nSize)
-    real :: CLa, omega
-    real :: resistance_e, resistance_i, ra
+    real :: CLa
+    real :: resistance_e, resistance_i, ra, lowra_factor
     110 FORMAT (1X, I10, 100ES25.16)
 
     if(t%verbose.eq.1) write(*,*) 'Running the Jacobian solver.'
@@ -810,10 +803,10 @@ subroutine plane_solve_jacobian(t)
                 call math_cross_product(vi(:), si%zeta(:), w(:))
                 vn = dot_product(vi(:), si%un(:))
                 va = dot_product(vi(:), si%ua(:))
-                call wing_sec_CLa_lowra(t%wings(iwing), sec_CLa(si), CLa, omega)
-                call wing_lowra_resistances(t%wings(iwing), sec_CLa(si), resistance_e, resistance_i)
-                omega = (pi * ra) / resistance_i
-                CLa = resistance_e
+
+                CLa = sec_CLa(si)
+                call wing_lowra_resistances(t%wings(iwing), CLa, resistance_e, resistance_i)
+                lowra_factor = CLa / resistance_e
 
                 do j=1,t%nSize
                     call math_cross_product(t%vij(j,i,:), si%zeta(:), vec(:))
@@ -822,8 +815,8 @@ subroutine plane_solve_jacobian(t)
                             & - vn*dot_product(t%vij(j,i,:),si%ua(:)))/(va**2+vn**2)
                 end do
 
-                t%Amat(i,i) = t%Amat(i,i) + 2.0*math_mag(3,w)
-                t%Bvec(i) = 2.0*math_mag(3,w)*t%Gammas(i) - sec_CL(si) / sec_CLa(si) * CLa
+                t%Amat(i,i) = (t%Amat(i,i) + 2.0*math_mag(3,w)) * CLa / resistance_e
+                t%Bvec(i) = (2.0*math_mag(3,w)*t%Gammas(i)) * CLa / resistance_e - sec_CL(si)
             end do
         end do
 
