@@ -89,7 +89,7 @@ subroutine wing_setup(t,start)
     real :: cfc,thetaf,efi,etah,percent_c_af,percent_1_af,percent_2_af
     type(dataset_t) :: data_sweep,data_dihedral,data_washout,data_chord,data_af_ratio,data_elastic_twist
     logical :: linear
-    real :: theta_start, theta_end, fac, off
+    REAL :: theta_start, theta_end, fac, off
 
     t%is_linear = 1
     if(t%nairfoils > 2) t%is_linear = 0

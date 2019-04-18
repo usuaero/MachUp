@@ -388,6 +388,11 @@ module dnadmod
        module procedure floor_d ! integer truncation of a dual number
    end interface
 
+   public isnan
+   interface isnan
+        module procedure isnan_d ! Test whether a dual is an IEEE NaN
+   end interface
+
 contains
 
 !*********Begin: functions/subroutines for overloading operators
@@ -1817,6 +1822,15 @@ contains
         integer :: res
 
         res = floor(u%x)
+
+    end function
+
+
+    function isnan_d(u) result(res)
+        type(dual), intent(in) :: u
+        logical :: res
+
+        res = isnan(u%x)
 
     end function
 
