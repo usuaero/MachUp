@@ -488,7 +488,8 @@ subroutine view_panair(t, json_command)
         end if
 
         ! Attach a wake to the trailing edge of the upper network
-        call view_write_panair_wake(t%wings(iwing)%ID, trim(adjustl(upper_network)))
+        call view_write_panair_wake(t%wings(iwing)%ID, trim(adjustl(upper_network)), &
+            &       10.0 * max(t%wings(iwing)%span, t%wings(iwing)%chord_1))
         deallocate(af_points)
     end do
 
@@ -743,9 +744,10 @@ subroutine view_write_panair_endcap(wi, af_points, network, npts, rscale)
 end subroutine view_write_panair_endcap
 
 
-subroutine view_write_panair_wake(id, network)
+subroutine view_write_panair_wake(id, network, xwake)
     integer, intent(in) :: id
     character(*), intent(in) :: network
+    real, intent(in) :: xwake
 
     write(10, "(A)") "$TRAILING matchw=0"
     write(10, "(A)") "=kn"
@@ -753,7 +755,8 @@ subroutine view_write_panair_wake(id, network)
     write(10, "(A, T11, A)") "=kt", "matchw"
     write(10, "(A, T11, A)") "18.0", "0.0"
     write(10, "(A, T11, A, T21, A, T31, A)") "=inat", "insd", "xwake", "twake"
-    write(10, "(A, T11, A, T21, A, T31, A, T71, A, T76, I0)") network, "1.0", "10.0", "0.0", "wake_", id
+    write(10, "(A, T11, A, T21, F9.3, T31, A, T71, A, T76, I0)") &
+        &       network, "1.0", xwake, "0.0", "wake_", id
 end subroutine view_write_panair_wake
 
 

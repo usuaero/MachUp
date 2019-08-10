@@ -157,9 +157,12 @@ subroutine wing_load_json(t, j_wing)
 
     ! Get low-aspect-ratio settings
     call myjson_get(j_wing, 'low_aspect_ratio_method', cval, 'none')
-    if (cval /= 'none' .and. cval /= 'Kuchemann' .and. cval /= 'Jones') then
+    if (cval /= 'none' .and. cval /= 'Classical' .and. cval /= 'Kuchemann' .and. &
+            &   cval /= 'Jones' .and. cval /= 'Hodson' .and. cval /= 'Helmbold' &
+            &   .and. cval /= 'Slender' .and. cval /= 'ModifiedSlender') then
         write(*, *) 'WARNING: Invalid low-aspect-ratio correction method specified: ', cval
-        write(*, *) '         Valid methods are: none | Kuchemann | Jones'
+        write(*, *) '         Valid methods are: Classical | Kuchemann | ', &
+                &   'Jones | Hodson | Helmbold | Slender | ModifiedSlender'
         t%larc_method = 'none'
     else
         t%larc_method = cval
